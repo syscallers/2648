@@ -3,6 +3,10 @@
 # 11/12/2025-11/20/2025
 #
 # Graphics routines for driving the bitmap display.
+#
+# Note for check-in: these functions are unused as of now, but later they will
+# be used. A proper draw gameboard function will be added that utilizes
+# drawRectangle below, along with text functions.
 
 # Draws a rectangle onto the bitmap display.
 #
