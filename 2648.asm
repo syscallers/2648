@@ -1,5 +1,5 @@
 # CS 2640.02 Final Project
-# Avery King, Lila Tatum, Josh Guzman, and Shuvashree Basnet
+# Avery King, Laila Tatum, Josh Guzman, and Shuvashree Basnet
 # 11/12/2025-11/20/2025
 #
 # This program is a 2048 game written in MIPS32 assembly. It uses the Bitmap
