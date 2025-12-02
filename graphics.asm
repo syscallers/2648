@@ -122,8 +122,9 @@ drawRectangle:
 	mul $t1, $a1, 4
 	add $t2, $t0, $t1
 
-	# Finally, setup our counter for the outer loop
-	move $t3, $0
+	# Finally, find the end address of the entire rectangle
+	mul $t3, $a2, 2048
+	add $t3, $t3, $t2
 
 	# Now begin the actual drawing
 	# Note: we don't use drawLine here for performance reasons. Calling drawLine
@@ -147,11 +148,8 @@ drawRectangle:
 		add $t0, $t0, 2048
 		add $t2, $t2, 2048
 
-		# Increment our counter
-		addi $t3, $t3, 1
-
-		# Continue drawing until we've hit the end of the painting region
-		blt $t3, $a2, drawHeight
+		# Continue drawing until we've hit the rectangle's ending address
+		blt $t2, $t3, drawHeight
 
 	# Once we're all done, simply return to the caller
 	jr $ra
