@@ -58,6 +58,51 @@
 	and %dest, %coor, 0x0000FFFF
 .end_macro
 
+# Converts an (x,y) coordinate point to a memory address
+#
+# Parameters:
+# - %src: The source register containing the coordinate point value
+# - %dst: The destination register to store the converted coordinate point
+.macro coordinate_to_address(%src, %dst)
+	# To get the starting address, first get the X value of the current coordiante
+	# and convert it to a memory address. Store it all in $t0 also.
+	get_x_value(%src, %dst)
+	mul %dst, %dst, 4
+	add %dst, %dst, $gp
+
+	# Then, shift the memory address down y times
+	get_y_value(%src, $t1)
+	mul $t1, $t1, 2048
+	add %dst, %dst, $t1
+.end_macro
+
+# Draws a horizontal or vertical 1 px line onto the bitmap display.
+#
+# All lines drawn by this function are either horizontal or vertical. Diagonal
+# lines are NOT supported
+#
+# Parameters:
+# - $a0: Starting coordinate (see the create_coordinate macro for details)
+# - $a1: Length of the line (in pixels)
+# - $a2: Color of the line
+drawLine:
+	# First, convert the coordinate point into a memory address and store the
+	# result in $t0.
+	coordinate_to_address($a0, $t0)
+
+	# Next, find the ending pointer of our line
+	mul $t1, $a1, 4
+	add $t1, $t1, $t0
+
+	# While we're not at the end pointer, draw to the display
+	loop:
+		sw $a2, ($t0)
+		addi $t0, $t0, 4
+		blt $t0, $t1, loop
+
+	# Finally, return to the caller
+	jr $ra
+
 # Draws a rectangle onto the bitmap display.
 #
 # Be sure to call with jal as this returns back to the caller.
@@ -68,16 +113,8 @@
 #   - $a2: Height
 #   - $a3: Color
 drawRectangle:
-	# To get the starting address, first get the X value of the current coordiante
-	# and convert it to a memory address. Store it all in $t0 also.
-	get_x_value($a0, $t0)
-	mul $t0, $t0, 4
-	add $t0, $t0, $gp
-
-	# Then, shift the memory address down y times
-	get_y_value($a0, $t1)
-	mul $t1, $t1, 2048	# $t1 will be reused for something else
-	add $t0, $t0, $t1
+	# First, convert our coordinate point to an address (stored in $t0)
+	coordinate_to_address($a0, $t0)
 
 	# Next, figure out how many bytes we are going to write to each row of the
 	# display (stored in $t1). Also find the end address of the current row 
@@ -89,6 +126,9 @@ drawRectangle:
 	move $t3, $0
 
 	# Now begin the actual drawing
+	# Note: we don't use drawLine here for performance reasons. Calling drawLine
+	# in a loop would mean it would have to continuously perform
+	# coordinate-to-address over and over again.
 	drawHeight:
 		drawWidth:
 			# Write the color to memory
