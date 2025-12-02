@@ -4,33 +4,85 @@
 #
 # Graphics routines for driving the bitmap display.
 #
-# Note for check-in: these functions are unused as of now, but later they will
-# be used. A proper draw gameboard function will be added that utilizes
-# drawRectangle below, along with text functions.
+# Note: coordinates have their own unique way of storage to be space efficient.
+# You may use the create_coordinate, get_x_value, and get_y_value macros to
+# deal with coordinates. See create_coordinate's documentation for more details
+# about how coordinates are represented.
+
+# Creates a coordinate from two 16-bit unsigned immediate integers and store
+# them in a single destination register.
+#
+# The X-value of the coordinate is stored in the upper 16 bits of a register,
+# while the Y-value is stored in the lower 16 bits of a register.
+#
+# The purpose of storing coordinates this way is due to the limited number of
+# argument registers available to use. Using drawRectangle as an example, we
+# would normally store all our information in 5 registers. We can easily use a
+# stack, but to avoid memory access, we pack coordinates into a single register
+# and unpack them that way.
+#
+# Parameters:
+# - %x: The 16-bit immediate X value
+# - %y: The 16-bit immediate Y value
+# - %reg: The destination register to store the result
+.macro create_coordinate(%x, %y, %reg)
+	# First, load the upper 16-bits of '%reg' with the X-value
+	lui %reg, %x
+
+	# Then, OR the value in %reg with the Y-value
+	ori %reg, %reg, %y
+.end_macro
+
+# Loads the X value from a coordinate in a given register and save its result
+# in another given register.
+#
+# Parameters:
+# - %coor: The register containing the coordinate
+# - %dest: The destination register to store the X value in
+.macro get_x_value(%coor, %dest)
+	# Shift %coor to the right 16 bits to get the X value
+	# Note: the 'srl' instruction also clears the lower 16-bits automatically, so
+	# we don't need to worry about clearing any upper bits after the fact
+	srl %dest, %coor, 16
+.end_macro
+
+# Loads the Y value from a coordinate in a given register and save its result
+# in another given register.
+#
+# Parameters:
+# - %coor: The register containing the coordinate
+# - %dest: The destination register to store the Y value in
+.macro get_y_value(%coor, %dest)
+	# Clear the upper 16-bits while preserving the lower 16-bits
+	# Turns out CS 1300 came in really handy ;)
+	and %dest, %coor, 0x0000FFFF
+.end_macro
 
 # Draws a rectangle onto the bitmap display.
 #
 # Be sure to call with jal as this returns back to the caller.
 #
 # Parameters
-#   - $s0: X coordinate
-#   - $s1: Y coordinate
-#   - $s2: Width
-#   - $s3: Height
-#   - $s4: Color
+#   - $a0: Starting coordinate (see the create_coordinate macro for details)
+#   - $a1: Width
+#   - $a2: Height
+#   - $a3: Color
 drawRectangle:
-	# To get the starting address, first convert the starting coordinate to a
-	# memory address (stored in $t0).
-	mul $t0, $s0, 4
+	# To get the starting address, first get the X value of the current coordiante
+	# and convert it to a memory address. Store it all in $t0 also.
+	get_x_value($a0, $t0)
+	mul $t0, $t0, 4
 	add $t0, $t0, $gp
 
 	# Then, shift the memory address down y times
-	mul $t1, $s1, 2048	# $t1 is used as a temporary here
+	get_y_value($a0, $t1)
+	mul $t1, $t1, 2048	# $t1 will be reused for something else
 	add $t0, $t0, $t1
 
 	# Next, figure out how many bytes we are going to write to each row of the
-	# display (stored in $t1). Also find the end address of the current row ($t2).
-	mul $t1, $s2, 4
+	# display (stored in $t1). Also find the end address of the current row 
+	# (stored in $t2).
+	mul $t1, $a1, 4
 	add $t2, $t0, $t1
 
 	# Finally, setup our counter for the outer loop
@@ -40,7 +92,7 @@ drawRectangle:
 	drawHeight:
 		drawWidth:
 			# Write the color to memory
-			sw $s4, ($t0)
+			sw $a3, ($t0)
 
 			# Increment our display pointer ($t0)
 			addi $t0, $t0, 4
@@ -59,7 +111,7 @@ drawRectangle:
 		addi $t3, $t3, 1
 
 		# Continue drawing until we've hit the end of the painting region
-		blt $t3, $s3, drawHeight
+		blt $t3, $a2, drawHeight
 
 	# Once we're all done, simply return to the caller
 	jr $ra
