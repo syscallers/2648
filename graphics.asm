@@ -85,20 +85,39 @@
 # - $a0: Starting coordinate (see the create_coordinate macro for details)
 # - $a1: Length of the line (in pixels)
 # - $a2: Color of the line
+# - $a3: Set to 1 (or any value really) to draw vertically, otherwise for
+# horizontally.
 drawLine:
 	# First, convert the coordinate point into a memory address and store the
 	# result in $t0.
 	coordinate_to_address($a0, $t0)
 
-	# Next, find the ending pointer of our line
-	mul $t1, $a1, 4
-	add $t1, $t1, $t0
+	# Then, determine how much we increment our current display pointer by. If we
+	# are drawing a vertical line, we increment it by 2048 bytes as that moves
+	# the display pointer down to the next root. Otherwise, we increment it by 4
+	# bytes as it moves the display pointer to the next column.
+	bnez $a3, _drawVertical
+	j _drawHorizontal
+	_drawVertical:
+		li $t1, 2048
+		j _drawContinue
 
-	# While we're not at the end pointer, draw to the display
-	loop:
-		sw $a2, ($t0)
-		addi $t0, $t0, 4
-		blt $t0, $t1, loop
+	_drawHorizontal:
+		li $t1, 4
+
+	_drawContinue:
+		# Next, find the end address of the line. We will draw up to this point
+		# (inclusive). Do this by multiply the number of bytes we will increment our
+		# display pointer by ($t1) by the length of the line ($a1). Then, add our
+		# starting display pointer address ($t0) to it.
+		mul $t2, $t1, $a1
+		add $t2, $t2, $t0
+
+		# While we're not at the end pointer, draw to the display
+		loop:
+			sw $a2, ($t0)
+			add $t0, $t0, $t1
+			blt $t0, $t2, loop
 
 	# Finally, return to the caller
 	jr $ra
