@@ -16,9 +16,9 @@
 #
 # Parameters:
 #   - %reg: The register to take data from and push onto the stack.
-.macro push(%reg)
-	sw %reg, ($sp)
+.macro push_word(%reg)
 	subi $sp, $sp, 4
+	sw %reg, ($sp)
 .end_macro
 
 # Pops a word from the top of the stack into a given register.
@@ -28,7 +28,7 @@
 #
 # Parameters:
 #   - %reg: The register to store the topmost element onto
-.macro pop(%reg)
+.macro pop_word(%reg)
 	lw %reg, ($sp)
 	addi $sp, $sp, 4
 .end_macro
