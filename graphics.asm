@@ -82,15 +82,14 @@
 # lines are NOT supported
 #
 # Parameters:
-# - $a0: Starting coordinate (see the create_coordinate macro for details)
+# - $a0: Starting memory address (must be converted from a coordinate beforehand)
 # - $a1: Length of the line (in pixels)
 # - $a2: Color of the line
 # - $a3: Set to 1 (or any value really) to draw vertically, otherwise for
 # horizontally.
 drawLine:
-	# First, convert the coordinate point into a memory address and store the
-	# result in $t0.
-	coordinate_to_address($a0, $t0)
+	# First, copy $a0 to $t0 so we don't modify our argument
+	move $t0, $a0
 
 	# Then, determine how much we increment our current display pointer by. If we
 	# are drawing a vertical line, we increment it by 2048 bytes as that moves
