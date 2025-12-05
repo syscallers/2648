@@ -1,6 +1,6 @@
 #CS 2640.02
 
-#Author: Laila Tatum, Shuvashree Basnet
+#Author: Laila Tatum, Shuvashree Basnet, Josh Guzman, Avery King
 #Date: 11/23/2025
 #Description: file containing macros for final project
 
@@ -66,4 +66,19 @@
 	li $v0, 5
 	syscall
 	move %result, $v0
+.end_macro
+
+.macro fillEmptyBoard
+	    li $t7, 0                # loop counter = 0
+
+fillLoop:
+    sw $zero, (arrPtr)       # array[i] = 0
+
+    addi arrPtr, arrPtr, 4   # move pointer to next word
+    addi $t7, $t7, 1         # i++
+
+    blt $t7, 16, fillLoop    # while i < 16
+	
+	exitLoop:
+
 .end_macro

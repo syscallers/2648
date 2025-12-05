@@ -2,7 +2,7 @@
 # Final project: write and test the basic game logic by using regular registers to simulate the combination and randomization
 # of tiles in the game before implementing them into graphics
 
-# Author: Laila Tatum, Shuvashree Basnet
+# Author: Laila Tatum, Shuvashree Basnet, Josh Guzman, Avery King
 # Date: 11/23/2025
 # Description: create a program that:
 	#1.) creates an array to hold the tile values
@@ -16,16 +16,20 @@
 #constants
 .eqv TILE_TWO 	2	#default value for randomized tiles
 .eqv TILE_FOUR 	4	#default value for randomized tiles
-.eqv NULL_TILE	"null"	#default value for randomized tiles
+.eqv NULL_TILE	0	#default value for randomized tiles
 .eqv FINAL_TILE 2048	#value of the tile needed to end the game
 
+#register EQVs
+.eqv hLoopCounter $t2
+.eqv vLoopCounter $t3
+.eqv arrPtr $s0
+
 .data
-#strings for formatting
 tabSpacer: .asciiz "	"
 newLine: .asciiz "\n"
 
-#gameboard array; stores 16 elements of grid in array
-gameboardArr: .space 64
+#gameboard array; stores 16 elements of grid in array 
+gameboardArr: .space 64 #16 elements x 4 bytes
 
 #exit message
 exitMessage: .asciiz "Exiting the game"
@@ -33,67 +37,69 @@ exitMessage: .asciiz "Exiting the game"
 .text
 main:
 	#formatting for game board (4x4)
-	li $t2, 0	#set $t0 as the horizontal loop counter
-	li $t3, 0	#set $t1 as the vertical loop counter
+	li hLoopCounter, 0	#set hLoopCounter register = 0
+	li vLoopCounter, 0	#set vLoopCounter register = 0
 	
-	#save gameboard values array into $s0
-	la $s0, gameboardArr
+	#save gameboard values array into $s0 which will be our array pointer
+	la arrPtr, gameboardArr
+	
+	#fill all array values to 0
+	fillEmptyBoard
+	
+	#print every value in array
+	
 	jal storeArrVal
 	
-	#reset the loop counter and array pointer
-	li $t2, 0
-	la $s0, gameboardArr
-	
+	# reset everything before printing
+    	la arrPtr, gameboardArr      # back to start of array
+    	li hLoopCounter, 0
+    	li vLoopCounter, 0
+
 	#print the array values to the console
 	j printArrTiles
 	
 storeArrVal:
-	#store the values into $s0 array
+	#store the values into base address
 	getTileVal($t0)
-	sw $t0, ($s0)
+	sw $t0, (arrPtr) #store value of $t0 into location of array pointer
 		
-	#increment the loop counter and array pointer
-	addi $t2, $t2, 1
-	addi $s0, $s0, 4
+
+	addi hLoopCounter, hLoopCounter, 1 # hLoopCounter++
+	addi arrPtr, arrPtr, 4 # arrPtr += 4
 	
 	#if the loop counter hits 16, loop through the label again
-	ble $t2, 16, storeArrVal
+	blt hLoopCounter, 16, storeArrVal
 		
 	#otherwise, return to the main lable
 	jr $ra
 		
 printArrTiles:
-	#store the tile value from the array in $t1
-	lw $t1, ($s0)
+
+	lw $t1, (arrPtr) #store tile value from the array in $t1
 	
-	#print the tile
-	printInt($t1)
-		
-	#print space between tiles
-	printStr(tabSpacer)
-		
-	#increment the horizontal loop counter by 1
-	addi $t2, $t2, 1
+	printInt($t1)	#print the tile
 	
-	#increment the array pointer by 4
-	addi $s0, $s0, 4
+	printStr(tabSpacer)	#print space between tiles
+		
+	addi hLoopCounter, hLoopCounter, 1 #hLoopCounter++
+	addi arrPtr, arrPtr, 4		#arrPtr += 4
 		
 	#if the row doesn't have 4 tiles,
-	#  loop back through the printGameBoard label
-	bne $t2, 4, printArrTiles
+	# loop back through the printGameBoard label
+	bne hLoopCounter, 4, printArrTiles
 		
 	#otherwise, move to the next line
 	printStr(newLine)
 		
 	#reset the horizontal loop counter
-	li $t2, 0
+	li hLoopCounter, 0
 		
 	#increment the vertical loop counter by 1
-	addi $t3, $t3, 1
+	addi vLoopCounter, vLoopCounter, 1
 		
 	#if the vertical loop counter hits 4,
 	#  jump to the swipe label
-	beq $t3, 4, exit
+	beq vLoopCounter, 4, exit
 		
 	#loop through the printGameBoard label again
 	j printArrTiles
