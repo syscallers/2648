@@ -11,6 +11,13 @@
 	syscall
 .end_macro
 
+.macro printStrLit(%str)
+.data
+	_str: .asciiz %str
+.text
+	printStr(_str)
+.end_macro
+
 #macro to print integers
 .macro printInt(%int)
 	li $v0, 1	#print a integer
