@@ -508,3 +508,64 @@ drawRectangle:
 
 	# Once we're all done, simply return to the caller
 	jr $ra
+
+# Draws the gameboard
+#
+# Parameters:
+# - $a0: The starting address of the in-memory gameboard data to read from
+drawGameboard:
+	push_word($ra)	# Save the current return address onto the stack
+	move $s0, $a0	# Save the current display address
+	move $s1, $0	# Setup our inner loop counter
+	move $s2, $0	# Setup our outer loop counter
+
+	# Setup our arguments outside the loop
+	create_coordinate(10, 10, $a0)	# (10, 10)
+	li $a1, 108			# 108 px Width
+	li $a2, 108			# 108 px Height
+	li $a3, 0xFFFFFF		# TODO: Read gameboard data and decide color based on that data
+
+	# Save the original X value too
+	# Note: don't use get_x_value because it shifts the bits right. We want to
+	# preserve the X coordinate value at its upper 16 bits when we got to restore
+	# it
+	li $t0, 0xFFFF0000
+	and $s3, $a0, $t0
+
+	_drawRow:
+		_drawColumn:
+			# TODO: Select the tile background and text color based on its value
+
+			# Draw a rectangle
+			jal drawRectangle
+
+			# TODO: Draw the tile's value
+
+			# Increment the x value coordinate by 128 px
+			#
+			# Note: 128 = 0x80. The first pair and leading pair of zeros is also so we
+			# only increment the upper 16 bits of the address.
+			addi $a0, $a0, 0x00800000
+			addi $s1, $s1, 1
+			blt $s1, 4, _drawColumn
+
+		# Restore our original X value
+		and $a0, 0x0000FFFF	# Clear the X value
+		or $a0, $a0, $s3	# Store the old X value in the coordinate point
+
+		# Increment our Y value by 128 px
+		#
+		# Note: 128 = 0x80. We don't need any leading zeros or such because we're
+		# incrementing the lower 16 bits, which shouldn't be much of a concern.
+		addi $a0, $a0, 0x80
+
+		# Reset the inner loop counter back to 0
+		move $s1, $0
+
+		# Increemnt our counter
+		addi $s2, $s2, 1
+		blt $s2, 4, _drawRow
+
+	# Pop the return address off the stack and return back to the caller
+	pop_word($ra)
+	jr $ra
