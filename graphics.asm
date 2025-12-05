@@ -59,6 +59,10 @@
 	and %dest, %coor, 0x0000FFFF
 .end_macro
 
+# Constants
+.eqv MAX_CHAR_WIDTH	8	# Maximum number width
+.eqv MAX_CHAR_HEIGHT	15	# Maximum number height
+
 # Converts an (x,y) coordinate point to a memory address
 #
 # Parameters:
@@ -203,7 +207,7 @@ drawNumber:
 
 			# Setup our arguments and counter
 			move $a0, $s0
-			li $a1, 8
+			li $a1, MAX_CHAR_WIDTH
 			move $t3, $0	# Counter
 			__loop:
 				jal drawLine
@@ -222,25 +226,25 @@ drawNumber:
 		_drawZero:
 			# First draw the top
 			move $a0, $s0
-			li $a1, 8
+			li $a1, MAX_CHAR_WIDTH
 			move $a3, $0
 			jal drawLine
 
 			# Then draw the left side
-			li $a1, 15
+			li $a1, MAX_CHAR_HEIGHT
 			li $a3, 1
 			jal drawLine
 
 			# Now draw the bottom
 			addi $a0, $a0, 28672	# Move the display pointer down 14 rows (2048 * 14 = 28672)
-			li $a1, 8
+			li $a1, MAX_CHAR_WIDTH
 			move $a3, $0
 			jal drawLine
 
 			# Finally, move the cursor back to its original spot and increment that
 			# address by 8 pixels
 			addi $a0, $s0, 32	# (8 * 4 = 32)
-			li $a1, 15
+			li $a1, MAX_CHAR_HEIGHT
 			li $a3, 1
 			jal drawLine
 
@@ -255,7 +259,7 @@ drawNumber:
 			# Only draw the left side. First move the cursor over by 15 and draw a
 			# vertical line
 			move $a0, $s0
-			li $a1, 15
+			li $a1, MAX_CHAR_HEIGHT
 			li $a3, 1
 			jal drawLine
 
@@ -275,7 +279,7 @@ drawNumber:
 			jal _drawMiddleLines
 
 			# Then, move the display cursor to the far right 7 px (28 bytes) and draw a
-			# vertical line there
+			# vertical line there.
 			add $a0, $s0, 28
 			li $a1, 8
 			li $a3, 1
@@ -300,7 +304,7 @@ drawNumber:
 
 			# Then draw a vertical line towards the far right
 			add $a0, $s0, 28	# Move display pointer 7 px (28 bytes)
-			li $a1, 15
+			li $a1, MAX_CHAR_HEIGHT
 			li $a3, 1
 			jal drawLine
 
