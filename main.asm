@@ -24,7 +24,7 @@
 
 .data
 	# Gameboard array; stores 16 elements of grid in array
-	gameboardArr: .space 64
+	gameboardData: .space 64
 
 	#exit message
 	exitMessage: .asciiz "Exiting the game"
