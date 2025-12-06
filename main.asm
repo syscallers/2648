@@ -32,6 +32,7 @@
 .text
 main:
 	# Draw the initial gameboard
+	la $a0, gameboardData
 	jal drawGameboard
 
 mainLoop:
@@ -60,7 +61,8 @@ keyPress:
 	j mainLoop
 
 moveUp:
-	# TODO: Shift gameboard up
+	la $a0, gameboardData
+	jal shiftGameboardUp
 	j mainLoop
 
 moveLeft:
@@ -80,5 +82,8 @@ exit:
 	li $v0, 10
 	syscall
 
-# Include this last or else the program will start at the wrong location
+# Include this last or else the program will start at the wrong location. Also,
+# leave these in the order they are included.
+.include "stack_macros.asm"
+.include "game_logic.asm"
 .include "graphics.asm"
