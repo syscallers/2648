@@ -59,6 +59,8 @@
 .end_macro
 
 # Constants
+.eqv MAX_DISPLAY_WIDTH	512	# Maximum display width
+.eqv MAX_DISPLAY_HEIGHT	512	# Maximum display height
 .eqv MAX_CHAR_WIDTH	8	# Maximum number width
 .eqv MAX_CHAR_HEIGHT	15	# Maximum number height
 
@@ -619,4 +621,24 @@ drawGameboard:
 	pop_word($s1)
 	pop_word($s0)
 	pop_word($ra)
+	jr $ra
+
+# Erases everything on the entire display
+#
+# Parameters: none
+clearDisplay:
+	# Find the total number of bytes to write to video memory
+	li $t1, MAX_DISPLAY_WIDTH
+	mul $t1, $t1, MAX_DISPLAY_HEIGHT
+
+	# Setup our loop counter
+	move $t0, $0
+
+	# For each part of the display, clear it.
+	_clrLoop:
+		sw $gp, ($0)
+		addi $t0, $t0, 1
+		blt $t0, $t1, _clrLoop
+
+	# Finally, return to the caller
 	jr $ra
