@@ -206,23 +206,29 @@ drawNumber:
 		# Draws three lines, one at the top, another in the middle, and another at
 		# the bottom. Used in numbers 2, 3, 5, 6, and 8
 		#
-		# Note: be sure to call with jal
+		# Note: be sure to call with jal. DO NOT CALL EXTERNALLY!
 		_drawMiddleLines:
 			# Push the current return address onto the stack
 			push_word($ra)
+			push_word($s1)
+			push_word($s2)
 
 			# Setup our arguments and counter
-			move $t3, $0	# Counter
+			move $s1, $0	# Counter
+			move $s2, $s0	# Temporary current display pointer
 			__loop:
-				move $a0, $s0
+				move $a0, $s2
 				li $a1, MAX_CHAR_WIDTH
+				move $a3, $0
 				jal drawLine
 
-				add $a0, $s0, 14336	# Move the display pointer down 7 px (14336 bytes)
-				addi $t3, $t3, 1
-				blt $t3, 3, __loop
+				addi $s2, $s2, 14336	# Move the display pointer down 7 px (14336 bytes)
+				addi $s1, $s1, 1
+				blt $s1, 3, __loop
 
 			# Return back to the caller
+			pop_word($s2)
+			pop_word($s1)
 			pop_word($ra)
 			jr $ra
 
@@ -238,6 +244,7 @@ drawNumber:
 			jal drawLine
 
 			# Then draw the left side
+			move $a0, $s0
 			li $a1, MAX_CHAR_HEIGHT
 			li $a3, 1
 			jal drawLine
