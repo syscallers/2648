@@ -8,7 +8,6 @@
 # You may use the create_coordinate, get_x_value, and get_y_value macros to
 # deal with coordinates. See create_coordinate's documentation for more details
 # about how coordinates are represented.
-.include "stack_macros.asm"
 
 # Creates a coordinate from two 16-bit unsigned immediate integers and store
 # them in a single destination register.
@@ -519,54 +518,71 @@ drawRectangle:
 # - $a0: The starting address of the in-memory gameboard data to read from
 drawGameboard:
 	push_word($ra)	# Save the current return address onto the stack
-	move $s0, $a0	# Save the current display address
+	move $s0, $a0	# Save the current gamedata pointer
 	move $s1, $0	# Setup our inner loop counter
 	move $s2, $0	# Setup our outer loop counter
 
 	# Setup our arguments outside the loop
 	create_coordinate(10, 10, $a0)	# (10, 10)
-	li $a1, 108			# 108 px Width
-	li $a2, 108			# 108 px Height
-	li $a3, 0xFFFFFF		# TODO: Read gameboard data and decide color based on that data
 
 	# Save the original X value too
-	# Note: don't use get_x_value because it shifts the bits right. We want to
-	# preserve the X coordinate value at its upper 16 bits when we got to restore
-	# it
-	li $t0, 0xFFFF0000
-	and $s3, $a0, $t0
+	get_x_value($a0, $s3)
 
 	_drawRow:
 		_drawColumn:
 			# TODO: Select the tile background and text color based on its value
 
 			# Draw a rectangle
-			jal drawRectangle
+			li $a1, 108			# 108 px Width
+			li $a2, 108			# 108 px Height
+			li $a3, 0xFFFFFF		# TODO: Read gameboard data and decide color based on that data
+			jal drawRectangle	# Checkpoint
 
 			# TODO: Draw the tile's value
+			lw $a1, ($s0)
+			li $s2, 0xFF0000
+			jal drawNumber
 
-			# Increment the x value coordinate by 128 px
-			#
-			# Note: 128 = 0x80. The first pair and leading pair of zeros is also so we
-			# only increment the upper 16 bits of the address.
-			addi $a0, $a0, 0x00800000
+			# Increment the x value coordinate by 128 px and shift it over 16 bits so we
+			# get the number in the upper 16 bits
+			add $s3, $s3, 128
+			sll $s3, $s3, 16
+
+			# Clear the old X value
+			li $t0, 0xFFFF0000
+			and $a0, $a0, $t0
+
+			# Add the new X value
+			or $a0, $a0, $s3
+
+			# Shift the X value right 16 bits to get its normal value again
+			srl $s3, $s3, 16
+
+			# Increment the current gamedata pointer and inner loop counter and continue
+			# this loop until the counter is 4.
+			addi $s0, $s0, 4
 			addi $s1, $s1, 1
 			blt $s1, 4, _drawColumn
 
 		# Restore our original X value
+		sll $s3, $s3, 16	# Perform a bitshift first
 		and $a0, 0x0000FFFF	# Clear the X value
 		or $a0, $a0, $s3	# Store the old X value in the coordinate point
+		srl $s3, $s3, 16	# Shift the X value back to its original value
 
 		# Increment our Y value by 128 px
-		#
-		# Note: 128 = 0x80. We don't need any leading zeros or such because we're
-		# incrementing the lower 16 bits, which shouldn't be much of a concern.
-		addi $a0, $a0, 0x80
+		li $t0, 0x0000FFFF
+		get_y_value($a0, $t0)	# Store the current Y value into $t0
+		add $t0, $t0, 128	# Add 128 px
+		and $a0, $a0, 0xFFFF	# Clear the old Y value from $a0
+		or $a0, $a0, $t0	# Pack the new Y value into $a0
 
 		# Reset the inner loop counter back to 0
 		move $s1, $0
 
 		# Increemnt our counter
+		# Note: no need to increment the current tile value pointer. The inner loop
+		# already takes care of that.
 		addi $s2, $s2, 1
 		blt $s2, 4, _drawRow
 
