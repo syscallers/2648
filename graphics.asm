@@ -133,7 +133,21 @@ drawLine:
 # - $a1: The integer to draw. Must be greater than or equal to 1.
 # - $a2: The color of the number
 drawNumber:
-	# First, we need to reverse our number so the order of digits are flipped. For
+	# Before anything, save register $ra and reigsters $s0-$s5. We will be using
+	# them later and, per our calling convention, these registers are to be
+	# preserved across function calls.
+	push_word($ra)
+	push_word($s0)
+	push_word($s1)
+	push_word($s2)
+	push_word($s3)
+	push_word($s4)
+	push_word($s5)
+
+	# First, convert our coordinate point into a memory address and save it to $s0
+	coordinate_to_address($a0, $s0)
+
+	# Next, we need to reverse our number so the order of digits are flipped. For
 	# example, if we have the number 2048, we need to flip it so its 8402. To do
 	# this, keep dividing the value of $a1 (our number to print) by 10, storing
 	# the quotient there as well. Then, continue doing that until our quotient is
@@ -165,15 +179,10 @@ drawNumber:
 
 	# Next, setup some registers
 	move $s1, $t1	# Copy our flipped number here. $a1 gets discarded later
-	coordinate_to_address($a0, $s0)
 	move $s2, $0	# Current digit
 	move $s3, $0	# Counter
 	move $s4, $t3	# Number of total digits to draw
 	li $s5, 10	# Number to divide by
-
-	# Save the current return address onto the stack too. It will get overwritten
-	# when we make a call to drawLine
-	push_word($ra)
 
 	_drawLoop:
 		# To get the least significant digit, we can use the 'div' instruction and
@@ -457,9 +466,16 @@ drawNumber:
 			addi $s3, $s3, 1
 			blt $s3, $s4 _drawLoop
 
+	# Restore the previous register values, including the return address
+	pop_word($s5)
+	pop_word($s4)
+	pop_word($s3)
+	pop_word($s2)
+	pop_word($s1)
+	pop_word($s0)
+	pop_word($ra)
+
 	# Finally, restore the return address and return to the caller
-	lw $ra, ($sp)
-	addi $sp, $sp, 4
 	jr $ra
 
 # Draws a rectangle onto the bitmap display.
@@ -518,7 +534,14 @@ drawRectangle:
 # Parameters:
 # - $a0: The starting address of the in-memory gameboard data to read from
 drawGameboard:
-	push_word($ra)	# Save the current return address onto the stack
+	# First, save the current return address onto the stack along with registers
+	# $s0-$s2.
+	push_word($ra)
+	push_word($s0)
+	push_word($s1)
+	push_word($s2)
+	push_word($s3)
+
 	move $s0, $a0	# Save the current gamedata pointer
 	move $s1, $0	# Setup our inner loop counter
 	move $s2, $0	# Setup our outer loop counter
@@ -587,6 +610,11 @@ drawGameboard:
 		addi $s2, $s2, 1
 		blt $s2, 4, _drawRow
 
-	# Pop the return address off the stack and return back to the caller
+	# Pop the saved registers and return address off the stack and return back to
+	# the caller.
+	pop_word($s3)
+	pop_word($s2)
+	pop_word($s1)
+	pop_word($s0)
 	pop_word($ra)
 	jr $ra
