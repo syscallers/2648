@@ -92,35 +92,33 @@
 # - $a3: Set to 1 (or any value really) to draw vertically, otherwise for
 # horizontally.
 drawLine:
-	# First, copy $a0 to $t0 so we don't modify our argument
-	move $t0, $a0
-
-	# Then, determine how much we increment our current display pointer by. If we
+	# First, determine how much we increment our current display pointer by. If we
 	# are drawing a vertical line, we increment it by 2048 bytes as that moves
 	# the display pointer down to the next root. Otherwise, we increment it by 4
-	# bytes as it moves the display pointer to the next column.
+	# bytes as it moves the display pointer to the next column. In either case,
+	# store the result in $t0
 	bnez $a3, _drawVertical
 	j _drawHorizontal
 	_drawVertical:
-		li $t1, 2048
+		li $t0, 2048
 		j _drawContinue
 
 	_drawHorizontal:
-		li $t1, 4
+		li $t0, 4
 
 	_drawContinue:
 		# Next, find the end address of the line. We will draw up to this point
 		# (inclusive). Do this by multiply the number of bytes we will increment our
-		# display pointer by ($t1) by the length of the line ($a1). Then, add our
-		# starting display pointer address ($t0) to it.
-		mul $t2, $t1, $a1
-		add $t2, $t2, $t0
+		# display pointer by ($t0) by the length of the line ($a1). Then, add our
+		# starting display pointer address ($a0) to it.
+		mul $a1, $a1, $t0
+		add $a1, $a1, $a0
 
 		# While we're not at the end pointer, draw to the display
 		loop:
-			sw $a2, ($t0)
-			add $t0, $t0, $t1
-			blt $t0, $t2, loop
+			sw $a2, ($a0)
+			add $a0, $a0, $t0
+			blt $a0, $a1, loop
 
 	# Finally, return to the caller
 	jr $ra
@@ -205,12 +203,13 @@ drawNumber:
 			push_word($ra)
 
 			# Setup our arguments and counter
-			move $a0, $s0
-			li $a1, MAX_CHAR_WIDTH
 			move $t3, $0	# Counter
 			__loop:
+				move $a0, $s0
+				li $a1, MAX_CHAR_WIDTH
 				jal drawLine
-				add $a0, $a0, 14336	# Move the display pointer down 7 px (14336 bytes)
+
+				add $a0, $s0, 14336	# Move the display pointer down 7 px (14336 bytes)
 				addi $t3, $t3, 1
 				blt $t3, 3, __loop
 
@@ -235,7 +234,7 @@ drawNumber:
 			jal drawLine
 
 			# Now draw the bottom
-			addi $a0, $a0, 28672	# Move the display pointer down 14 rows (2048 * 14 = 28672)
+			addi $a0, $s0, 28672	# Move the display pointer down 14 rows (2048 * 14 = 28672)
 			li $a1, MAX_CHAR_WIDTH
 			move $a3, $0
 			jal drawLine
@@ -323,7 +322,8 @@ drawNumber:
 
 			# Then, draw an 8 px horizontal line after moving the display pointer down
 			# 7 px (14336 bytes)
-			add $a0, $a0, 14336
+			add $a0, $s0, 14336
+			li $a1, 8
 			move $a3, $0
 			jal drawLine
 
@@ -393,7 +393,7 @@ drawNumber:
 			jal drawLine
 
 			# Finally, draw the right side
-			add $a0, $a0, 28
+			add $a0, $s0, 28
 			li $a1, 15
 			li $a3, 1
 			jal drawLine
@@ -416,7 +416,8 @@ drawNumber:
 			jal drawLine
 
 			# Finally, draw the right vertical line
-			add $a0, $a0, 28
+			add $a0, $s0, 28
+			li $a1, 15
 			jal drawLine
 
 			# Exit this case
