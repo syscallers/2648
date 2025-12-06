@@ -206,23 +206,29 @@ drawNumber:
 		# Draws three lines, one at the top, another in the middle, and another at
 		# the bottom. Used in numbers 2, 3, 5, 6, and 8
 		#
-		# Note: be sure to call with jal
+		# Note: be sure to call with jal. DO NOT CALL EXTERNALLY!
 		_drawMiddleLines:
 			# Push the current return address onto the stack
 			push_word($ra)
+			push_word($s1)
+			push_word($s2)
 
 			# Setup our arguments and counter
-			move $t3, $0	# Counter
+			move $s1, $0	# Counter
+			move $s2, $s0	# Temporary current display pointer
 			__loop:
-				move $a0, $s0
+				move $a0, $s2
 				li $a1, MAX_CHAR_WIDTH
+				move $a3, $0
 				jal drawLine
 
-				add $a0, $s0, 14336	# Move the display pointer down 7 px (14336 bytes)
-				addi $t3, $t3, 1
-				blt $t3, 3, __loop
+				addi $s2, $s2, 14336	# Move the display pointer down 7 px (14336 bytes)
+				addi $s1, $s1, 1
+				blt $s1, 3, __loop
 
 			# Return back to the caller
+			pop_word($s2)
+			pop_word($s1)
 			pop_word($ra)
 			jr $ra
 
@@ -238,6 +244,7 @@ drawNumber:
 			jal drawLine
 
 			# Then draw the left side
+			move $a0, $s0
 			li $a1, MAX_CHAR_HEIGHT
 			li $a3, 1
 			jal drawLine
@@ -535,52 +542,46 @@ drawRectangle:
 # - $a0: The starting address of the in-memory gameboard data to read from
 drawGameboard:
 	# First, save the current return address onto the stack along with registers
-	# $s0-$s2.
+	# $s0-$s4.
 	push_word($ra)
 	push_word($s0)
 	push_word($s1)
 	push_word($s2)
 	push_word($s3)
+	push_word($s4)
 
 	move $s0, $a0	# Save the current gamedata pointer
 	move $s1, $0	# Setup our inner loop counter
 	move $s2, $0	# Setup our outer loop counter
-
-	# Setup our arguments outside the loop
-	create_coordinate(10, 10, $a0)	# (10, 10)
-
-	# Save the original X value too
-	get_x_value($a0, $s3)
+	create_coordinate(10, 10, $s3)	# The default starting coordinate (saved to $s3)
+	get_x_value($s3, $s4)		# Save the default X value to $s4
 
 	_drawRow:
 		_drawColumn:
 			# TODO: Select the tile background and text color based on its value
 
 			# Draw a rectangle
+			move $a0, $s3
 			li $a1, 108			# 108 px Width
 			li $a2, 108			# 108 px Height
 			li $a3, 0xFFFFFF		# TODO: Read gameboard data and decide color based on that data
-			jal drawRectangle	# Checkpoint
+			jal drawRectangle
 
-			# TODO: Draw the tile's value
 			lw $a1, ($s0)
-			li $s2, 0xFF0000
+			li $a2, 0xFF0000
 			jal drawNumber
 
-			# Increment the x value coordinate by 128 px and shift it over 16 bits so we
-			# get the number in the upper 16 bits
-			add $s3, $s3, 128
-			sll $s3, $s3, 16
+			# Get the current X value from $s3 and increment it by 128 px. Save that sum
+			# to $t0 and shift the value left 16 bits
+			get_x_value($s3, $t0)
+			addi $t0, $t0, 128
+			sll $t0, $t0, 16
 
-			# Clear the old X value
-			li $t0, 0xFFFF0000
-			and $a0, $a0, $t0
+			# Clear the old X value in $s3
+			and $s3, 0x0000FFFF
 
-			# Add the new X value
-			or $a0, $a0, $s3
-
-			# Shift the X value right 16 bits to get its normal value again
-			srl $s3, $s3, 16
+			# Pack the new X value
+			or $s3, $s3, $t0
 
 			# Increment the current gamedata pointer and inner loop counter and continue
 			# this loop until the counter is 4.
@@ -589,17 +590,17 @@ drawGameboard:
 			blt $s1, 4, _drawColumn
 
 		# Restore our original X value
-		sll $s3, $s3, 16	# Perform a bitshift first
-		and $a0, 0x0000FFFF	# Clear the X value
-		or $a0, $a0, $s3	# Store the old X value in the coordinate point
-		srl $s3, $s3, 16	# Shift the X value back to its original value
+		sll $s4, $s4, 16	# Perform a bitshift on the original X value first
+		and $s3, 0x0000FFFF	# Clear the X value
+		or $s3, $s3, $s4	# Store the old X value in the coordinate point
+		srl $s4, $s4, 16	# Shift the X value back to its original value
 
 		# Increment our Y value by 128 px
-		li $t0, 0x0000FFFF
-		get_y_value($a0, $t0)	# Store the current Y value into $t0
+		get_y_value($s3, $t0)	# Store the current Y value into $t0
 		add $t0, $t0, 128	# Add 128 px
-		and $a0, $a0, 0xFFFF	# Clear the old Y value from $a0
-		or $a0, $a0, $t0	# Pack the new Y value into $a0
+		li $t1, 0xFFFF0000
+		and $s3, $s3, $t1	# Clear the old Y value from $s3
+		or $s3, $s3, $t0	# Pack the new Y value into $s3
 
 		# Reset the inner loop counter back to 0
 		move $s1, $0
@@ -612,6 +613,7 @@ drawGameboard:
 
 	# Pop the saved registers and return address off the stack and return back to
 	# the caller.
+	pop_word($s4)
 	pop_word($s3)
 	pop_word($s2)
 	pop_word($s1)
