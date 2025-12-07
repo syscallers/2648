@@ -67,3 +67,27 @@
 	syscall
 	move %result, $v0
 .end_macro
+
+# multiplies arr value by 2
+.macro mulByTwo(%val)
+	mul %val, %val, 2
+.end_macro
+
+.macro printArr(%arr)	# prints array assuming array has 4 elements
+	li $v0, 1
+	la $a0, 0(%arr)
+	syscall
+	
+	li $v0, 1
+	la $a0, 4(%arr)
+	syscall
+	
+	li $v0, 1
+	la $a0, 8(%arr)
+	syscall
+	
+	li $v0, 1
+	la $a0 12(%arr)
+	syscall
+	
+.end_macro
