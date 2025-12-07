@@ -4,12 +4,15 @@
 #
 # Contains logic to shift the gameboard up, down, left, and right
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 
 # Used by shiftGameboardUp. DO NOT USE AS A STANDALONE FUNCTION.
 __doubleTile:
 	add $t1, $t1, $t2	# Double the previous tile value
 	sw $t1, -16($a0)
 	jr $ra
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 .include "stack_macros.asm"
@@ -25,6 +28,7 @@ shiftGameboardDown:
 
 	move $t0, $0	# Counter for outer loop
 	move $t1, $0	# Counter for inner loop
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 	move $t2, $a0	# Current pointer
 	move $t3, $0	# Number of items pushed onto the stack
@@ -211,6 +215,8 @@ cleanup_Down:
 	
 	
 =======
+=======
+>>>>>>> Stashed changes
 	move $t2, $a0	# Current game data pointer 
 	move $t3, $0	# previous tile value
 	move $t4, $0	# current tile value
@@ -282,4 +288,7 @@ cleanup_Down:
 			# return back to caller
 			pop_word($ra)
 			jr $ra
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
