@@ -1,20 +1,23 @@
 # CS 2640.02
 # 12/5/2025
-# Avery King and Laila Tatum
+# Avery King, Laila Tatum, and Shuvashree Basnet
 #
 # Contains logic to shift the gameboard up, down, left, and right
+<<<<<<< Updated upstream
 
 # Used by shiftGameboardUp. DO NOT USE AS A STANDALONE FUNCTION.
 __doubleTile:
 	add $t1, $t1, $t2	# Double the previous tile value
 	sw $t1, -16($a0)
 	jr $ra
+=======
+>>>>>>> Stashed changes
 .include "stack_macros.asm"
 # Shifts the gameboard
 #
 # Parameters:
 # - $a0: Pointer to the gameboard data
-shiftGameboardUp:
+shiftGameboardDown:
 	push_word($ra)	# Save the return address onto the stack
 
 	# This function works in 2 passes: combining tiles and actually shifting
@@ -22,6 +25,7 @@ shiftGameboardUp:
 
 	move $t0, $0	# Counter for outer loop
 	move $t1, $0	# Counter for inner loop
+<<<<<<< Updated upstream
 	move $t2, $a0	# Current pointer
 	move $t3, $0	# Number of items pushed onto the stack
 
@@ -206,3 +210,76 @@ cleanup_Down:
 	
 	
 	
+=======
+	move $t2, $a0	# Current game data pointer 
+	move $t3, $0	# previous tile value
+	move $t4, $0	# current tile value
+	
+	# add 16 to current game data pointer to start at second row
+	addi $t2, $t2, 16
+	
+	# PASS 1: For each column starting at 2nd element, check the previous element
+	# if equal and nonezero, multiply current tile and clear previous tile
+	__combineTiles:
+		__checkTiles:
+			lw $t3, -16($t2)	# previous tile's value
+			lw $t4, ($t2)		# current tile's value
+			
+			# if tiles not equal, continue loop
+			bne $t3, $t4, __endCheckTiles
+			
+			# else, double current tile's value and write the updated tile values to game data in memory
+			mul $t4, $t4, 2
+			sw $0, -16($t2)	# previous tile set to 0 (cleared)
+			sw $t4, ($t2)	# update current tile to double its previous value
+			
+			__endCheckTiles:
+			addi $t1, $t1, 1	# increment inner loop counter by 1
+			addi $t2, $t2, 16	# go to next tile value (in next row)
+			addi $t0, $t0, 1	# increment outer loop coutner by 1
+			
+		blt $t0, 4, __combineTiles
+		
+		# reset register values
+		move $t2, $a0	# reset game data pointer to 0
+		move $t3, $0	# number of items pushed onto stack
+		
+		# PASS 2: For each column, if tile value is not 0, push current tile's value onto the stack
+		__rowTraverse:
+			__pushStack:
+				# get current tile value
+				add $t3, $t3, 1
+				
+				__endLoop:
+					addi $t2, $t2, 16	# incrementing game data pointer
+						
+					addi $t1, $t1, 1
+					blt $t1, 4, __pushStack
+			
+			# if num items in stack is 0, return
+			beqz $t3, __ret
+			
+			# else, pop elements off stakc and into each tile value
+			move $t1, $0	# reset inner loop counter
+			move $t2, $a0	# reset current tile value pointer
+			mul $t3, $t3, 4
+			add $t4, $t4, $sp
+			
+			__popStack:
+				# get current element off stack
+				lw $t5, ($t4)
+				
+				# store element into current row pointer
+				sw $t5, ($t2)
+				
+				# increment stack pointer
+				add $t2, $t2, 16
+				# increment current tile value pointer
+				add $t4, $t4, 4
+				blt $t1, $t3, __popStack
+				
+		__ret:
+			# return back to caller
+			pop_word($ra)
+			jr $ra
+>>>>>>> Stashed changes
