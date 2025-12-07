@@ -33,9 +33,6 @@ exitMessage: .asciiz "\nExiting the game.\n"
 
 .text
 main:
-	#set $sp to the highest address in the user stack segment
-	li $sp, 0x7ffffffc
-	
 	#create the initial gameboard array
 	jal storeIntArrVal
 
@@ -60,11 +57,6 @@ game_over:
     	j exit
 	
 storeIntArrVal:
-	#save the old value of $ra and $s0 in the stack
-	addi $sp, $sp, -8
-   	sw $ra, 4($sp)
-   	sw $s0, 0($sp)
-   	
 	#formatting for game board (4x4)
 	li $t2, 0	#set $t2 as the horizontal loop counter
 	li $t3, 0	#set $t3 as the vertical loop counter
@@ -93,22 +85,10 @@ storeIntArrVal:
 		j storeIntArrVal_end
 	
 	storeIntArrVal_end:
-		#restore $ra and $s0 from the stack
-		lw $s0, 0($sp)
-		lw $ra, 4($sp)
-		
-		#deallocate stack space
-    		addi $sp, $sp, 8
-    
 		#return to the game label
 		jr $ra
 		
 printArrTiles:
-	#save the olde value of $ra and $s0 in the stack
-	addi $sp, $sp, -8
-   	sw $ra, 4($sp)
-   	sw $s0, 0($sp)
-   	
 	#reset the loop counter and array pointer
 	li $t2, 0
 	li $t3, 0
@@ -151,22 +131,10 @@ printArrTiles:
 		j printArrTiles_loop
 	
 	printArrTiles_end:
-		#restore $ra and $s0 from the stack
-		lw $s0, 0($sp)
-		lw $ra, 4($sp)
-		
-		#deallocate stack space
-    		addi $sp, $sp, 8
-    		
 		#jump back to main label
 		jr $ra
 	
 swipe:	
-	#save the olde value of $ra and $s0 in the stack
-	addi $sp, $sp, -8
-   	sw $ra, 4($sp)
-   	sw $s0, 0($sp)
-   	
 	#reset the array pointer and counter
 	la $s0, gameboardArr
 	li $t2, 0
@@ -231,27 +199,11 @@ swipe:
 		j swipe_end
 		
 	swipe_end:
-		#restore $ra and $s0 from the stack
-		lw $s0, 0($sp)
-		lw $ra, 4($sp)
-		
-		#deallocate stack space
-    		addi $sp, $sp, 8
-    		
 		#return to main label
 		jr $ra
 	
 #check if there are no remaining tiles
 checkTiles:
-	#save the olde value of $ra and $s0 in the stack
-	addi $sp, $sp, -8
-   	sw $ra, 4($sp)
-   	sw $s0, 0($sp)
-   	
-	#reset counter and array pointer
-	li $t2, 0
-	la $s0, gameboardArr
-
 	checkTiles_loop:
 		#check all 16 tiles
 		bge $t2, 16, checkTiles_full
@@ -292,14 +244,7 @@ checkTiles:
 	   	li $v0, 1
 	    	
 	checkTiles_end:
-		#restore $ra and $s0 from the stack
-		lw $s0, 0($sp)
-		lw $ra, 4($sp)
-		
-		#deallocate stack space
-    		addi $sp, $sp, 8
-	    
-	    	#return the game label
+		#return the game label
 	    	jr $ra
 	
 exit:
