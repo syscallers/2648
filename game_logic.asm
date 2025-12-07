@@ -14,13 +14,6 @@
 
 #shifts the gameboard left
 shiftGameboardLeft:
-	#push the return address, row counters, and temporary 
-	#register for state/logic onto the stack
-	push_word($ra)	#save the return address
-	push_word($s6)  #save row index counter
-	push_word($s7)  #save row start pointer
-	push_word($s5)  #save a temporary register for state/logic
-
 	#set $s6 as the outer loop counter
 	li $s6, 0
 	
@@ -159,24 +152,11 @@ outerLoop_Left:
 	j outerLoop_Left
 
 cleanup_Left:
-	#restore registers
-	pop_word($s5)
-	pop_word($s7)
-	pop_word($s6)
-	pop_word($ra)
-	
 	#return to the caller
 	jr $ra
 	
 #shifts the gameboard right
 shiftGameboardRight:
-	#push the return address, row counters, and temporary 
-	#register for state/logic onto the stack
-	push_word($ra)	#save the return address
-	push_word($s6)  #save row index counter
-	push_word($s7)  #save row start pointer
-	push_word($s5)  #save a temporary register for state/logic
-
 	#set $s6 as the outer loop counter
 	li $s6, 0
 	
@@ -315,11 +295,5 @@ outerLoop_Right:
 	j outerLoop_Right
 
 cleanup_Right:
-	#restore registers
-	pop_word($s5)
-	pop_word($s7)
-	pop_word($s6)
-	pop_word($ra)
-	
 	#return to the caller
 	jr $ra
