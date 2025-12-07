@@ -50,7 +50,7 @@ shiftGameboardUp:
 				blt $t1, 3, __checkTiles
 
 		addi $t0, $t0, 1	# Increment the outer loop counter
-		blt $t0, 4, __combineTiles
+		blt $t0, 4, _combineTiles
 
 	# Reset some registers
 	move $t1, $0	# Reset the inner loop counter
