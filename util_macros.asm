@@ -27,36 +27,26 @@
 
 #macro to print a random tile between null, 2, and 4
 .macro getTileVal(%tile)
+	# Get the current time
+	li $v0, 30
+	syscall
+
+	# Set the current random number generator's seed to the higher 32 bits of the
+	# system's current time.
+	li $v0, 40
+	syscall
+
 	#store default tile values
 	li $s1, 2
-	
+
 	#get a number between 0-2 to determine tile value
 	li $v0, 42	#generates the random number
 	li $a1, 3	#set max bound to 3
-    	syscall
+	syscall
+
+	move $s4, $a0	#save random integer to $s4
     	
-    	move $s4, $a0	#save random integer to $s4
-    	
-    	beq $s4, 0, tileZero
-    	beq $s4, 1, tileTwo
-    	beq $s4, 2, tileFour
-	    	
-	#if we get 0, store null into the parameter
-    	tileZero:
-    		mul %tile, $s4, $s1
-    		j end
-    	
-    	#if we get 1, store 2 into the parameter
-    	tileTwo:
-    		mul %tile, $s4, $s1
-    		j end
-    	
-    	#if we get 2, store 4 into the parameter
-    	tileFour:
-    		mul %tile, $s4, $s1
-    		j end
-    	
-    	end: #end the getTileVal macro
+	mul %tile, $s4, 2
 .end_macro
 
 #macro to get string from user

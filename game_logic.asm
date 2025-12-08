@@ -10,6 +10,42 @@ __doubleTile:
 	sw $t1, -16($a0)
 	jr $ra
 
+# Places a random tile in the board
+#
+# Parameters:
+# - $a0: Game data pointer
+placeRandomTile:
+	# Save the game data pointer
+	move $s0, $a0
+
+	# First, generate a random tile value
+	getTileVal($t0)
+
+	_findSuitableAddress:
+		# Then, generate a random number between 0 and 15
+		li $v0, 42
+		li $a1, 15
+		syscall
+
+		# Convert it to an address offset
+		mul $t1, $a0, 4
+
+		# Add the game data pointer to the offset
+		add $t1, $t1, $s0
+
+		# Get the current tile's value at the randomly generated address
+		lw $t2, ($t1)
+
+		# Check if the current tile value at that address is non zero. If it is,
+		# repeat this section again until we encounter one with zero
+		bnez $t2, _findSuitableAddress
+
+		# Write the random tile to that address
+		sw $t0, ($t1)
+
+	# Return back to the caller	
+	jr $ra
+
 # Shifts the gameboard
 #
 # Parameters:

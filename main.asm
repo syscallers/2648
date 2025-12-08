@@ -31,13 +31,9 @@
 
 .text
 main:
-	# Test case. Remove when we get proper random number generation done
-	la $t0, gameboardData
-	li $t2, 2
-	addi $t0, $t0, 20	# 2nd row, 2nd column
-	sw $t2, ($t0)
-	addi $t0, $t0, 16	# Move down 1 column
-	sw $t2, ($t0)
+	# Place a random tile in the gameboard
+	la $a0, gameboardData
+	jal placeRandomTile
 
 	# Draw the initial gameboard
 	la $a0, gameboardData
@@ -71,7 +67,12 @@ moveUp:
 	# Shift the entire gameboard up
 	jal shiftGameboardUp
 
+	# Place a random tile in the gameboard
+	la $a0, gameboardData
+	jal placeRandomTile
+
 	# Update the gameboard ($a0 will remain unchanged)
+	la $a0, gameboardData
 	jal drawGameboard
 
 	# Go back to the main loop
@@ -81,7 +82,12 @@ moveLeft:
 	# Shift the entire gameboard left
 	jal shiftGameboardLeft
 
+	# Place a random tile in the gameboard
+	la $a0, gameboardData
+	jal placeRandomTile
+
 	# Update the gameboard ($a0 will remain unchanged)
+	la $a0, gameboardData
 	jal drawGameboard
 
 	# Go back to the main loop
@@ -91,7 +97,12 @@ moveDown:
 	# Shift the entire gameboard down
 	jal shiftGameboardDown
 
+	# Place a random tile in the gameboard
+	la $a0, gameboardData
+	jal placeRandomTile
+
 	# Update the gameboard ($a0 will remain unchanged)
+	la $a0, gameboardData
 	jal drawGameboard
 
 	# Go back to the main loop
@@ -101,7 +112,12 @@ moveRight:
 	# Shift the entire gameboard right
 	jal shiftGameboardRight
 
-	# Update the gameboard ($a0 will remain unchanged)
+	# Place a random tile in the gameboard
+	la $a0, gameboardData
+	jal placeRandomTile
+
+	# Update the gameboard
+	la $a0, gameboardData
 	jal drawGameboard
 
 	# Go back to the main loop
