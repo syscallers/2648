@@ -31,6 +31,14 @@
 
 .text
 main:
+	# Test case. Remove when we get proper random number generation done
+	la $t0, gameboardData
+	li $t2, 2
+	addi $t0, $t0, 20	# 2nd row, 2nd column
+	sw $t2, ($t0)
+	addi $t0, $t0, 16	# Move down 1 column
+	sw $t2, ($t0)
+
 	# Draw the initial gameboard
 	la $a0, gameboardData
 	jal drawGameboard
@@ -50,19 +58,20 @@ keyPress:
 	beq $t0, 0x1B, exit
 
 	# Handle WASD keys
+	la $a0, gameboardData
 	beq $t0, 'w', moveUp
 	beq $t0, 'a', moveLeft
 	beq $t0, 's', moveDown
 	beq $t0, 'd', moveRight
 
-	# Update the gameboard (TODO)
-
 	# Go back to main to keep the loop
 	j mainLoop
 
 moveUp:
-	la $a0, gameboardData
 	jal shiftGameboardUp
+
+	# Update the gameboard ($a0 will remain unchanged)
+	jal drawGameboard
 	j mainLoop
 
 moveLeft:

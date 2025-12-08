@@ -15,8 +15,6 @@ __doubleTile:
 # Parameters:
 # - $a0: Pointer to the gameboard data
 shiftGameboardUp:
-	push_word($ra)	# Save the return address onto the stack
-
 	# This function works in 2 passes: combining tiles and actually shifting
 	# tiles. First, we combine the tiles
 
@@ -50,9 +48,11 @@ shiftGameboardUp:
 				blt $t1, 3, __checkTilesUp
 
 		addi $t0, $t0, 1	# Increment the outer loop counter
+		subi $t2, $t2, 28
 		blt $t0, 4, _combineTilesUp
 
 	# Reset some registers
+	move $t0, $0	# Reset the outer loop counter
 	move $t1, $0	# Reset the inner loop counter
 	move $t2, $a0	# Reset the game data pointer
 	move $t3, $0	# Number of items pushed onto the stack
@@ -60,47 +60,67 @@ shiftGameboardUp:
 	# Pass 2: For each column, push the current tile's value onto the stack unless
 	# it's zero. If it's zero, skip it.
 	__rowTraverseUp:
-		__pushStackUp:
-			# Get the current tile value
-			lw $t5, ($t2)
+		# Part 1: copy over non-zero elements onto the stack
+		__copyStackUp:
+			# Get the current element from the data pointer
+			lw $t4, ($t2)
 
-			# If $t4 is equal to zero, continue the loop
-			beqz $t5, __endLoopUp
+			# If the current element is equal to zero, skip it
+			beqz $t4, __copyStackUpFinish
 
-			# Otherwise, push the current tile value onto the stack
-			subi $sp, $sp, 4
-			sw $t4, ($sp)
+			# Otherwise, push it onto the stack
+			push_word($t4)
 			addi $t3, $t3, 1
 
-			__endLoopUp:
-				addi $t2, $t2, 16	# Increment the game data pointer
-				addi $t1, $t1, 1
-				blt $t1, 4, __pushStackUp
+			__copyStackUpFinish:
+				addi $t1, $t1, 1	# Increment the inner loop counter
+				addi $t2, $t2, 16	# Increment the tile value data pointer
+				blt $t1, 4, __copyStackUp
 
-		# If there are no items allocated onto the stack, return
-		beqz $t3, __retUp
+		# Adjust $t2 after the loop. It will have been incremented beyond a valid
+		# address at this point (exactly by 16 bytes). Also reset the inner loop
+		# counter
+		subi $t2, $t2, 16
+		move $t1, $0
 
-		# Otherwise, pop elements off the stack and into each tile value
-		move $t1, $0		# Reset the inner loop counter
-		move $t2, $a0		# Reset the current tile value pointer
-		mul $t4, $t3, 4
-		add $t4, $t4, $sp	# $t4 will initially point to the bottom of the stack
+		# Next, check if we copied any elements to the stack. If so, continue to __padStack
+		bge $t3, 1, __padStack
 
-		__popStackUp:
-			# Get the current element off the stack
-			lw $t5, ($t4)
+		# Otherwise, if we have copied 4 elements, skip padding the stack as we don't
+		# need anymore elements.
+		beq $t3, 4, __popStackUp
 
-			# Store that element into the current row pointer
-			sw $t5 ($t2)
+		# Finally, if we are still here, then we have pushed no elements onto the stack.
+		# Subtract the current data pointer by 48 bytes and finish the loop
+		subi $t2, $t2, 48
+		j __rowTraverseUpFinish
 
-			# Increment both the stack and current tile value pointers
-			add $t2, $t2, 16
-			add $t4, $t4, 4
-			blt $t1, $t3, __popStackUp
+		# Part 2: pad the stack with zeroes so we have 4 elements
+		__padStack:
+			push_word($0)
+			addi $t3, $t3, 1
+			blt $t3, 4, __padStack
+
+		# Part 3: pop elements from the top of the stack into the current column.
+		# Note that we start at the bottom of the current column as the top element
+		# on the stack will be the last element in the current column and vice versa.
+		__popStack:
+			# Pop the current element off the stack and write it to the current tile
+			pop_word($t3)
+			sw $t3, ($t2)
+
+			addi $t1, $t1, 1	# Increment the inner loop counter
+			subi $t2, $t2, 16	# Decrement the current tile value pointer
+			blt $t1, 4, __popStack
+
+		__rowTraverseUpFinish:
+			addi $t0, $t0, 1	# Increment the outer loop counter
+			move $t1, $0		# Reset the inner loop counter
+			addi $t2, $t2, 4	# Move over to the next column
+			blt $t0, 4, __rowTraverseUp
 
 	__retUp:
 		# Finally, return back to the caller
-		pop_word($ra)
 		jr $ra
 
 # Shifts the gameboard
@@ -169,7 +189,7 @@ shiftGameboardDown:
 			mul $t3, $t3, 4
 			add $t4, $t4, $sp
 			
-			__popStack:
+			__popStackUp:
 				# get current element off stack
 				lw $t5, ($t4)
 				
