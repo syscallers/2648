@@ -68,10 +68,13 @@ keyPress:
 	j mainLoop
 
 moveUp:
+	# Shift the entire gameboard up
 	jal shiftGameboardUp
 
 	# Update the gameboard ($a0 will remain unchanged)
 	jal drawGameboard
+
+	# Go back to the main loop
 	j mainLoop
 
 moveLeft:
@@ -79,7 +82,13 @@ moveLeft:
 	j mainLoop
 
 moveDown:
-	# TODO: Shift gameboard down
+	# Shift the entire gameboard down
+	jal shiftGameboardDown
+
+	# Update the gameboard ($a0 will remain unchanged)
+	jal drawGameboard
+
+	# Go back to the main loop
 	j mainLoop
 
 moveRight:
