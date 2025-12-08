@@ -552,12 +552,16 @@ drawGameboard:
 	push_word($s2)
 	push_word($s3)
 	push_word($s4)
+	push_word($s5)
+	push_word($s6)
 
 	move $s0, $a0	# Save the current gamedata pointer
 	move $s1, $0	# Setup our inner loop counter
 	move $s2, $0	# Setup our outer loop counter
 	create_coordinate(10, 10, $s3)	# The default starting coordinate (saved to $s3)
 	get_x_value($s3, $s4)		# Save the default X value to $s4
+	create_coordinate(20, 20, $s5)	# The defaul starting coordinate for numbers (saved to $s5)
+	get_x_value($s5, $s6)		# Save the default X value for numbers to $s6
 
 	_drawRow:
 		_drawColumn:
@@ -567,14 +571,15 @@ drawGameboard:
 			move $a0, $s3
 			li $a1, 108			# 108 px Width
 			li $a2, 108			# 108 px Height
-			li $a3, 0xFFFFFF		# TODO: Read gameboard data and decide color based on that data
+			li $a3, 0xC94446		# Random tile color I chose that I think looks nice
 			jal drawRectangle
 
 			# Get the current tile's number. If it's zero, skip drawing the number
+			move $a0, $s5
 			lw $a1, ($s0)
 			beqz $a1, _afterNumber
 
-			li $a2, 0xFF0000
+			li $a2, 0xFFFFFF
 			jal drawNumber
 
 			_afterNumber:
@@ -589,6 +594,18 @@ drawGameboard:
 
 				# Pack the new X value
 				or $s3, $s3, $t0
+
+				# Get the cuurent X value for numbers from $s5 and increment it by 128 px.
+				# Save that sum to $t0 and shift the value left 16 bits
+				get_x_value($s5, $t0)
+				addi $t0, $t0, 128
+				sll $t0, $t0, 16
+
+				# Clear the old X value in $s5
+				and $s5, 0x0000FFFF
+
+				# Pack the new X value
+				or $s5, $s5, $t0
 
 				# Increment the current gamedata pointer and inner loop counter and continue
 				# this loop until the counter is 4.
@@ -609,6 +626,21 @@ drawGameboard:
 		and $s3, $s3, $t1	# Clear the old Y value from $s3
 		or $s3, $s3, $t0	# Pack the new Y value into $s3
 
+		# For numbers: restore our original X value. See the section above for more
+		# info on how this works.
+		sll $s6, $s6, 16
+		and $s4, 0x0000FFFF
+		or $s5, $s5, $s6
+		srl $s6, $s6, 16
+
+		# Increment our Y value by 128 px. See the related section for rectangles
+		# above for more info on how this works.
+		get_y_value($s5, $t0)
+		add $t0, $t0, 128
+		li $t1, 0xFFFF0000
+		and $s5, $s5, $t1
+		or $s5, $s5, $t0
+
 		# Reset the inner loop counter back to 0
 		move $s1, $0
 
@@ -620,6 +652,8 @@ drawGameboard:
 
 	# Pop the saved registers and return address off the stack and return back to
 	# the caller.
+	pop_word($s6)
+	pop_word($s5)
 	pop_word($s4)
 	pop_word($s3)
 	pop_word($s2)
@@ -645,8 +679,8 @@ clearDisplay:
 	# For each part of the display, clear it.
 	_clrLoop:
 		sw $0, ($t2)
-		addi $t0, $t0, 1	# Increment the counter
-		addi $t2, $t2, 4	# Increment the display pointer
+		addi $t0, $t0, 1        # Increment the counter
+		addi $t2, $t2, 4        # Increment the display pointer
 		blt $t0, $t1, _clrLoop
 
 	# Finally, return to the caller

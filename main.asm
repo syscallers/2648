@@ -125,6 +125,8 @@ moveRight:
 
 exit:
 	# Exit the program
+	# Clear the display and exit the program
+	jal clearDisplay
 	li $v0, 10
 	syscall
 
