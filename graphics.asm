@@ -570,27 +570,31 @@ drawGameboard:
 			li $a3, 0xFFFFFF		# TODO: Read gameboard data and decide color based on that data
 			jal drawRectangle
 
+			# Get the current tile's number. If it's zero, skip drawing the number
 			lw $a1, ($s0)
+			beqz $a1, _afterNumber
+
 			li $a2, 0xFF0000
 			jal drawNumber
 
-			# Get the current X value from $s3 and increment it by 128 px. Save that sum
-			# to $t0 and shift the value left 16 bits
-			get_x_value($s3, $t0)
-			addi $t0, $t0, 128
-			sll $t0, $t0, 16
+			_afterNumber:
+				# Get the current X value from $s3 and increment it by 128 px. Save that sum
+				# to $t0 and shift the value left 16 bits
+				get_x_value($s3, $t0)
+				addi $t0, $t0, 128
+				sll $t0, $t0, 16
 
-			# Clear the old X value in $s3
-			and $s3, 0x0000FFFF
+				# Clear the old X value in $s3
+				and $s3, 0x0000FFFF
 
-			# Pack the new X value
-			or $s3, $s3, $t0
+				# Pack the new X value
+				or $s3, $s3, $t0
 
-			# Increment the current gamedata pointer and inner loop counter and continue
-			# this loop until the counter is 4.
-			addi $s0, $s0, 4
-			addi $s1, $s1, 1
-			blt $s1, 4, _drawColumn
+				# Increment the current gamedata pointer and inner loop counter and continue
+				# this loop until the counter is 4.
+				addi $s0, $s0, 4
+				addi $s1, $s1, 1
+				blt $s1, 4, _drawColumn
 
 		# Restore our original X value
 		sll $s4, $s4, 16	# Perform a bitshift on the original X value first
