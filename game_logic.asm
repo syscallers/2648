@@ -77,8 +77,11 @@ shiftGameboardUp:
 				addi $t2, $t2, 16	# Increment the tile value data pointer
 				blt $t1, 4, __copyStackUp
 
-		# Adjust $t2 after the loop
+		# Adjust $t2 after the loop. It will have been incremented beyond a valid
+		# address at this point (exactly by 16 bytes). Also reset the inner loop
+		# counter
 		subi $t2, $t2, 16
+		move $t1, $0
 
 		# Next, check if we copied any elements to the stack. If so, continue to __padStack
 		bge $t3, 1, __padStack
@@ -101,7 +104,6 @@ shiftGameboardUp:
 		# Part 3: pop elements from the top of the stack into the current column.
 		# Note that we start at the bottom of the current column as the top element
 		# on the stack will be the last element in the current column and vice versa.
-		move $t1, $0	# Reset the inner loop counter
 		__popStack:
 			# Pop the current element off the stack and write it to the current tile
 			pop_word($t3)
