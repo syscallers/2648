@@ -104,14 +104,14 @@ shiftGameboardUp:
 		# Part 3: pop elements from the top of the stack into the current column.
 		# Note that we start at the bottom of the current column as the top element
 		# on the stack will be the last element in the current column and vice versa.
-		__popStack:
+		__popStackUp:
 			# Pop the current element off the stack and write it to the current tile
 			pop_word($t3)
 			sw $t3, ($t2)
 
 			addi $t1, $t1, 1	# Increment the inner loop counter
 			subi $t2, $t2, 16	# Decrement the current tile value pointer
-			blt $t1, 4, __popStack
+			blt $t1, 4, __popStackUp
 
 		__rowTraverseUpFinish:
 			addi $t0, $t0, 1	# Increment the outer loop counter
@@ -123,86 +123,118 @@ shiftGameboardUp:
 		# Finally, return back to the caller
 		jr $ra
 
-# Shifts the gameboard
+# Shifts the gameboard down.
 #
 # Parameters:
 # - $a0: Pointer to the gameboard data
 shiftGameboardDown:
-	push_word($ra)	# Save the return address onto the stack
-
 	# This function works in 2 passes: combining tiles and actually shifting
 	# tiles. First, we combine the tiles
 
-	move $t0, $0	# Counter for outer loop
-	move $t1, $0	# Counter for inner loop
-	move $t2, $a0	# Current game data pointer 
-	move $t3, $0	# previous tile value
-	move $t4, $0	# current tile value
-	
-	# add 16 to current game data pointer to start at second row
+	move $t0, $0		# Counter for outer loop
+	move $t1, $0		# Counter for inner loop
+	move $t2, $a0		# Current game data pointer (offset by 1 column)
+
+	# Increment the current game data pointer by 16 so we start at the second tile
 	addi $t2, $t2, 16
-	
-	# PASS 1: For each column starting at 2nd element, check the previous element
-	# if equal and nonezero, multiply current tile and clear previous tile
-	__combineTiles:
-		__checkTiles:
-			lw $t3, -16($t2)	# previous tile's value
-			lw $t4, ($t2)		# current tile's value
-			
-			# if tiles not equal, continue loop
-			bne $t3, $t4, __endCheckTiles
-			
-			# else, double current tile's value and write the updated tile values to game data in memory
+
+	# Pass 1: For each column starting off at the 2nd row, check the tile at the
+	# previous row. If they are the same, multiply the current tile and clear the
+	# previous tile.
+	_combineTilesDown:
+		__checkTilesDown:
+			lw $t3, -16($t2)	# Previous tile's value
+			lw $t4, ($t2)		# Current tile's value
+
+			# If both tiles are NOT equal, continue the loop
+			bne $t3, $t4, __endCheckTilesDown
+
+			# Otherwise, double the current tile's value, and write the updated tile
+			# values to the game data in memory
 			mul $t4, $t4, 2
-			sw $0, -16($t2)	# previous tile set to 0 (cleared)
-			sw $t4, ($t2)	# update current tile to double its previous value
-			
-			__endCheckTiles:
-			addi $t1, $t1, 1	# increment inner loop counter by 1
-			addi $t2, $t2, 16	# go to next tile value (in next row)
-			addi $t0, $t0, 1	# increment outer loop coutner by 1
-			
-		blt $t0, 4, __combineTiles
-		
-		# reset register values
-		move $t2, $a0	# reset game data pointer to 0
-		move $t3, $0	# number of items pushed onto stack
-		
-		# PASS 2: For each column, if tile value is not 0, push current tile's value onto the stack
-		__rowTraverse:
-			__pushStack:
-				# get current tile value
-				add $t3, $t3, 1
-				
-				__endLoop:
-					addi $t2, $t2, 16	# incrementing game data pointer
-						
-					addi $t1, $t1, 1
-					blt $t1, 4, __pushStack
-			
-			# if num items in stack is 0, return
-			beqz $t3, __ret
-			
-			# else, pop elements off stakc and into each tile value
-			move $t1, $0	# reset inner loop counter
-			move $t2, $a0	# reset current tile value pointer
-			mul $t3, $t3, 4
-			add $t4, $t4, $sp
-			
-			__popStackUp:
-				# get current element off stack
-				lw $t5, ($t4)
-				
-				# store element into current row pointer
-				sw $t5, ($t2)
-				
-				# increment stack pointer
-				add $t2, $t2, 16
-				# increment current tile value pointer
-				add $t4, $t4, 4
-				blt $t1, $t3, __popStack
-				
-		__ret:
-			# return back to caller
-			pop_word($ra)
-			jr $ra
+			sw $0, -16($t2)	# Clear the previous tile
+			sw $t4, ($t2)	# Update the current tile
+
+			__endCheckTilesDown:
+				addi $t1, $t1, 1	# Increment the inner loop counter
+				add $t2, $t2, 16	# Go to the next tile value
+				blt $t1, 3, __checkTilesDown
+
+		addi $t0, $t0, 1	# Increment the outer loop counter
+		subi $t2, $t2, 28
+		blt $t0, 4, _combineTilesDown
+
+	# Reset some registers
+	move $t0, $0		# Reset the outer loop counter
+	move $t1, $0		# Reset the inner loop counter
+	add $t2, $a0, 48	# Reset the game data pointer to the end of the first row
+	move $t3, $0		# Number of items pushed onto the stack
+
+	# Pass 2: For each column, push the current tile's value onto the stack unless
+	# it's zero. If it's zero, skip it.
+	# Note that each column is traversed in reverse order, from the bottom column
+	# to the top.
+	__rowTraverseDown:
+		# Part 1: copy over non-zero elements onto the stack
+		__copyStackDown:
+			# Get the current element from the data pointer
+			lw $t4, ($t2)
+
+			# If the current element is equal to zero, skip it
+			beqz $t4, __copyStackDownFinish
+
+			# Otherwise, push it onto the stack
+			push_word($t4)
+			addi $t3, $t3, 1
+
+			__copyStackDownFinish:
+				addi $t1, $t1, 1	# Increment the inner loop counter
+				subi $t2, $t2, 16	# Decrement the tile value data pointer
+				blt $t1, 4, __copyStackDown
+
+		# Adjust $t2 after the loop. It will have been incremented beyond a valid
+		# address at this point (exactly by 16 bytes). Also reset the inner loop
+		# counter
+		addi $t2, $t2, 16
+		move $t1, $0
+
+		# If we have copied 4 elements, skip padding the stack as we don't need
+		# anymore elements.
+		beq $t3, 4, __popStackDown
+
+		# Otherwise, check if we copied any elements to the stack. If so, continue to
+		# __padStackDown
+		bge $t3, 1, __padStackDown
+
+		# Finally, if we are still here, then we have pushed no elements onto the stack.
+		# Increment the current data pointer by 48 bytes and finish the loop.
+		addi $t2, $t2, 64
+		j __rowTraverseDownFinish
+
+		# Part 2: pad the stack with zeroes so we have 4 elements
+		__padStackDown:
+			push_word($0)
+			addi $t3, $t3, 1
+			blt $t3, 4, __padStackDown
+
+		# Part 3: pop elements from the top of the stack into the current column.
+		# Note that we start at the bottom of the current column as the top element
+		# on the stack will be the last element in the current column and vice versa.
+		__popStackDown:
+			# Pop the current element off the stack and write it to the current tile
+			pop_word($t3)
+			sw $t3, ($t2)
+
+			addi $t1, $t1, 1	# Increment the inner loop counter
+			addi $t2, $t2, 16	# Increment the current tile value pointer
+			blt $t1, 4, __popStackDown
+
+		__rowTraverseDownFinish:
+			addi $t0, $t0, 1	# Increment the outer loop counter
+			move $t1, $0		# Reset the inner loop counter
+			subi $t2, $t2, 12	# Move over to the bottom of the next column
+			blt $t0, 4, __rowTraverseDown
+
+	__retDown:
+		# Finally, return back to the caller
+		jr $ra
