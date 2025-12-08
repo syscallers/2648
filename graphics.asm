@@ -59,10 +59,11 @@
 .end_macro
 
 # Constants
-.eqv MAX_DISPLAY_WIDTH	512	# Maximum display width
-.eqv MAX_DISPLAY_HEIGHT	512	# Maximum display height
-.eqv MAX_CHAR_WIDTH	8	# Maximum number width
-.eqv MAX_CHAR_HEIGHT	15	# Maximum number height
+.eqv MAX_DISPLAY_WIDTH	512		# Maximum display width
+.eqv MAX_DISPLAY_HEIGHT	512		# Maximum display height
+.eqv MAX_CHAR_WIDTH	8		# Maximum number width
+.eqv MAX_CHAR_HEIGHT	15		# Maximum number height
+.eqv DISPLAY_START	0x10040000	# Display start address
 
 # Converts an (x,y) coordinate point to a memory address
 #
@@ -74,7 +75,7 @@
 	# and convert it to a memory address. Store it all in $t0 also.
 	get_x_value(%src, %dst)
 	mul %dst, %dst, 4
-	add %dst, %dst, $gp
+	addi %dst, %dst, DISPLAY_START
 
 	# Then, shift the memory address down y times
 	get_y_value(%src, $t1)
@@ -634,10 +635,14 @@ clearDisplay:
 	# Setup our loop counter
 	move $t0, $0
 
+	# Setup the display pointer in $t2
+	li $t2, DISPLAY_START
+
 	# For each part of the display, clear it.
 	_clrLoop:
-		sw $gp, ($0)
-		addi $t0, $t0, 1
+		sw $0, ($t2)
+		addi $t0, $t0, 1	# Increment the counter
+		addi $t2, $t2, 4	# Increment the display pointer
 		blt $t0, $t1, _clrLoop
 
 	# Finally, return to the caller
