@@ -58,6 +58,13 @@
 	and %dest, %coor, 0x0000FFFF
 .end_macro
 
+# Constants
+.eqv MAX_DISPLAY_WIDTH	512		# Maximum display width
+.eqv MAX_DISPLAY_HEIGHT	512		# Maximum display height
+.eqv MAX_CHAR_WIDTH	8		# Maximum number width
+.eqv MAX_CHAR_HEIGHT	15		# Maximum number height
+.eqv DISPLAY_START	0x10040000	# Display start address
+
 # Converts an (x,y) coordinate point to a memory address
 #
 # Parameters:
@@ -68,7 +75,7 @@
 	# and convert it to a memory address. Store it all in $t0 also.
 	get_x_value(%src, %dst)
 	mul %dst, %dst, 4
-	add %dst, %dst, $gp
+	addi %dst, %dst, DISPLAY_START
 
 	# Then, shift the memory address down y times
 	get_y_value(%src, $t1)
@@ -82,44 +89,403 @@
 # lines are NOT supported
 #
 # Parameters:
-# - $a0: Starting coordinate (see the create_coordinate macro for details)
+# - $a0: Starting memory address (must be converted from a coordinate beforehand)
 # - $a1: Length of the line (in pixels)
 # - $a2: Color of the line
 # - $a3: Set to 1 (or any value really) to draw vertically, otherwise for
 # horizontally.
 drawLine:
-	# First, convert the coordinate point into a memory address and store the
-	# result in $t0.
-	coordinate_to_address($a0, $t0)
-
-	# Then, determine how much we increment our current display pointer by. If we
+	# First, determine how much we increment our current display pointer by. If we
 	# are drawing a vertical line, we increment it by 2048 bytes as that moves
 	# the display pointer down to the next root. Otherwise, we increment it by 4
-	# bytes as it moves the display pointer to the next column.
+	# bytes as it moves the display pointer to the next column. In either case,
+	# store the result in $t0
 	bnez $a3, _drawVertical
 	j _drawHorizontal
 	_drawVertical:
-		li $t1, 2048
+		li $t0, 2048
 		j _drawContinue
 
 	_drawHorizontal:
-		li $t1, 4
+		li $t0, 4
 
 	_drawContinue:
 		# Next, find the end address of the line. We will draw up to this point
 		# (inclusive). Do this by multiply the number of bytes we will increment our
-		# display pointer by ($t1) by the length of the line ($a1). Then, add our
-		# starting display pointer address ($t0) to it.
-		mul $t2, $t1, $a1
-		add $t2, $t2, $t0
+		# display pointer by ($t0) by the length of the line ($a1). Then, add our
+		# starting display pointer address ($a0) to it.
+		mul $a1, $a1, $t0
+		add $a1, $a1, $a0
 
 		# While we're not at the end pointer, draw to the display
 		loop:
-			sw $a2, ($t0)
-			add $t0, $t0, $t1
-			blt $t0, $t2, loop
+			sw $a2, ($a0)
+			add $a0, $a0, $t0
+			blt $a0, $a1, loop
 
 	# Finally, return to the caller
+	jr $ra
+
+# Draws a given number onto the bitmap display.
+#
+# Each number is drawn rectangularly as an 8x15 character with 1px of padding
+# around it. No conversion to a string is needed before hand.
+#
+# Parameters:
+# - $a0: The starting coordinate to draw the number
+# - $a1: The integer to draw. Must be greater than or equal to 1.
+# - $a2: The color of the number
+drawNumber:
+	# Before anything, save register $ra and reigsters $s0-$s5. We will be using
+	# them later and, per our calling convention, these registers are to be
+	# preserved across function calls.
+	push_word($ra)
+	push_word($s0)
+	push_word($s1)
+	push_word($s2)
+	push_word($s3)
+	push_word($s4)
+	push_word($s5)
+
+	# First, convert our coordinate point into a memory address and save it to $s0
+	coordinate_to_address($a0, $s0)
+
+	# Next, we need to reverse our number so the order of digits are flipped. For
+	# example, if we have the number 2048, we need to flip it so its 8402. To do
+	# this, keep dividing the value of $a1 (our number to print) by 10, storing
+	# the quotient there as well. Then, continue doing that until our quotient is
+	# zero. Meanwhile, get the remainder, add it to $t1, and multiply $t1 by 10.
+	# Also, at the same time, keep a counter for the number of digits we are going
+	# to print out in case we encounter a number divisible by 10.
+	li $t0, 10
+	move $t1, $0	# Contains the reversed number temporarily
+	move $t3, $0	# Number of digits
+	_reverseNum:
+		# First, multiply our result by $t1. Do this in case we encounter a number
+		# divisible by 10, such as 10 or 100.
+		mul $t1, $t1, 10
+
+		# Then, divide our number by 10, store the quotient in $a1, and store the
+		# remainder in $t2.
+		div $a1, $t0	# $a1 / 10
+		mflo $a1	# Get the quotient
+		mfhi $t2	# Get the remainder
+
+		# Add the remainder to $t1
+		add $t1, $t1, $t2
+
+		# Add to the number of digits
+		addi $t3, $t3, 1
+
+		# Continue until our quotient is zero
+		bnez $a1, _reverseNum
+
+	# Next, setup some registers
+	move $s1, $t1	# Copy our flipped number here. $a1 gets discarded later
+	move $s2, $0	# Current digit
+	move $s3, $0	# Counter
+	move $s4, $t3	# Number of total digits to draw
+	li $s5, 10	# Number to divide by
+
+	_drawLoop:
+		# To get the least significant digit, we can use the 'div' instruction and
+		# then the 'mfhi' to get the remainder (stored in HI)
+		div $s1, $s5
+		mflo $s1	# Get the quotient
+		mfhi $s2	# Get the remainder
+
+		# Draw the current digit
+		beqz $s2, _drawZero
+		beq $s2, 1, _drawOne
+		beq $s2, 2, _drawTwo
+		beq $s2, 3, _drawThree
+		beq $s2, 4, _drawFour
+		beq $s2, 5, _drawFive
+		beq $s2, 6, _drawSix
+		beq $s2, 7, _drawSeven
+		beq $s2, 8, _drawEight
+		beq $s2, 9, _drawNine
+
+		# Draws three lines, one at the top, another in the middle, and another at
+		# the bottom. Used in numbers 2, 3, 5, 6, and 8
+		#
+		# Note: be sure to call with jal. DO NOT CALL EXTERNALLY!
+		_drawMiddleLines:
+			# Push the current return address onto the stack
+			push_word($ra)
+			push_word($s1)
+			push_word($s2)
+
+			# Setup our arguments and counter
+			move $s1, $0	# Counter
+			move $s2, $s0	# Temporary current display pointer
+			__loop:
+				move $a0, $s2
+				li $a1, MAX_CHAR_WIDTH
+				move $a3, $0
+				jal drawLine
+
+				addi $s2, $s2, 14336	# Move the display pointer down 7 px (14336 bytes)
+				addi $s1, $s1, 1
+				blt $s1, 3, __loop
+
+			# Return back to the caller
+			pop_word($s2)
+			pop_word($s1)
+			pop_word($ra)
+			jr $ra
+
+		# Zero case
+		#
+		# Draw two horizontal lines across the top and bottom, respectively, and then
+		# draw two vertical lines on the left and right sides, respectively.
+		_drawZero:
+			# First draw the top
+			move $a0, $s0
+			li $a1, MAX_CHAR_WIDTH
+			move $a3, $0
+			jal drawLine
+
+			# Then draw the left side
+			move $a0, $s0
+			li $a1, MAX_CHAR_HEIGHT
+			li $a3, 1
+			jal drawLine
+
+			# Now draw the bottom
+			addi $a0, $s0, 28672	# Move the display pointer down 14 rows (2048 * 14 = 28672)
+			li $a1, MAX_CHAR_WIDTH
+			move $a3, $0
+			jal drawLine
+
+			# Finally, move the cursor back to its original spot and increment that
+			# address by 8 pixels
+			addi $a0, $s0, 32	# (8 * 4 = 32)
+			li $a1, MAX_CHAR_HEIGHT
+			li $a3, 1
+			jal drawLine
+
+			# Exit this case
+			j _continue
+
+		# One case
+		#
+		# The easiest case out there. Just draw a straight 15 px vertical line from
+		# our current display pointer down.
+		_drawOne:
+			# Only draw the left side. First move the cursor over by 15 and draw a
+			# vertical line
+			move $a0, $s0
+			li $a1, MAX_CHAR_HEIGHT
+			li $a3, 1
+			jal drawLine
+
+			# Offset the display pointer by 7 px (28 bytes)
+			subi $s0, $s0, 28
+
+			# Exit this case
+			j _continue
+
+		# Two case
+		#
+		# This case involves drawing 3 lines in the middle and then drawing two
+		# vertical lines in between the first two middle lines and the last two ones,
+		# each on opposing sides.
+		_drawTwo:
+			# Start with 3 middle lines
+			jal _drawMiddleLines
+
+			# Then, move the display cursor to the far right 7 px (28 bytes) and draw a
+			# vertical line there.
+			add $a0, $s0, 28
+			li $a1, 8
+			li $a3, 1
+			jal drawLine
+
+			# Finally, move the display cursor down 7 px (14336 bytes) and draw an 8px
+			# vertical line
+			add $a0, $s0, 14336
+			li $a1, 8
+			jal drawLine
+
+			# Exit this case
+			j _continue
+
+		# Three case
+		#
+		# This case involves drawing 3 middle lines and drawing a vertical line on
+		# the right. Most work is done in _drawMiddleLines.
+		_drawThree:
+			# Start with 3 middle lines
+			jal _drawMiddleLines
+
+			# Then draw a vertical line towards the far right
+			add $a0, $s0, 28	# Move display pointer 7 px (28 bytes)
+			li $a1, MAX_CHAR_HEIGHT
+			li $a3, 1
+			jal drawLine
+
+			# Exit this case
+			j _continue
+
+		# Four case
+		#
+		# Draws an 8 px vertical line on the left, then an 8 px horizontal line
+		# across, and finally a 15 px vertical line on the right.
+		_drawFour:
+			# First, draw an 8 px vertical line towards the left
+			move $a0, $s0
+			li $a1, 8
+			li $a3, 1
+			jal drawLine
+
+			# Then, draw an 8 px horizontal line after moving the display pointer down
+			# 7 px (14336 bytes)
+			add $a0, $s0, 14336
+			li $a1, 8
+			move $a3, $0
+			jal drawLine
+
+			# Finally, draw a vertical line to the left
+			add $a0, $s0, 28	# Move display pointer right 7 px (28 bytes)
+			li $a1, 15
+			li $a3, 1
+			jal drawLine
+
+			# Exit this case
+			j _continue
+
+		# Five case
+		#
+		# Much like the two case, except we draw the first vertical line to the left
+		# and the second vertical line to the right
+		_drawFive:
+			# Start with 3 middle lines
+			jal _drawMiddleLines
+
+			# Then, reset the display cursor and draw a vertical line there
+			move $a0, $s0
+			li $a1, 8
+			li $a3, 1
+			jal drawLine
+
+			# Finally, move the display cursor down 7 px (14336 bytes) and over 7 px (28
+			# bytes) and draw an 8px vertical line
+			add $a0, $s0, 14364	# 14336 + 28 = 14364
+			li $a1, 8
+			jal drawLine
+
+			# Exit this case
+			j _continue
+
+		# Six case
+		#
+		# Also uses 3 middle lines, drawing a 15 px line on the right and an 8 px
+		# line on the right.
+		_drawSix:
+			# Start with 3 middle lines
+			jal _drawMiddleLines
+
+			# Then, reset the display cursor and draw a 15 px vertical line there
+			move $a0, $s0
+			li $a1, 15
+			li $a3, 1
+			jal drawLine
+
+			# Finally, move the display cursor to the far right (7 px or 28 bytes) and
+			# down 7 px (14336 bytes) and draw an 8 px vertical line there
+			add $a0, $s0, 14364	# 14336 + 28 = 1434 bytes
+			li $a1, 8
+			jal drawLine
+
+			# Exit this case
+			j _continue
+
+		# Seven case
+		#
+		# This is perhaps the second most easiest branch out of all the numbers. We
+		# just draw a line across the top and a line on the right side.
+		_drawSeven:
+			# First, draw the top
+			move $a0, $s0
+			li $a1, 8
+			jal drawLine
+
+			# Finally, draw the right side
+			add $a0, $s0, 28
+			li $a1, 15
+			li $a3, 1
+			jal drawLine
+
+			# Exit this case
+			j _continue
+
+		# Eight case
+		#
+		# This could be drawn like a 0, but the code is much easier to read if we
+		# instead draw the middle lines first and then 2 vertical lines on each side.
+		_drawEight:
+			# First, draw the 3 middle lines
+			jal _drawMiddleLines
+
+			# Then, draw the left vertical line
+			move $a0, $s0
+			li $a1, 15
+			li $a3, 1
+			jal drawLine
+
+			# Finally, draw the right vertical line
+			add $a0, $s0, 28
+			li $a1, 15
+			jal drawLine
+
+			# Exit this case
+			j _continue
+
+		# Nine case
+		_drawNine:
+			# First, draw the top
+			move $a0, $s0
+			li $a1, 8
+			jal drawLine
+
+			# Next, draw the left vertical line
+			li $a3, 1
+			jal drawLine
+
+			# Do the same thing but on the right side and the line height is 15 px
+			add $a0, $a0, 28
+			li $a1, 15
+			jal drawLine
+
+			# Finally, draw the middle line
+			add $a0, $s0, 14336	# Move the display pointer down 7 px (14336 bytes)
+			li $a1, 8
+			move $a3, $0
+			jal drawLine
+
+		_continue:
+			# Move the display pointer over by 10 px (40 bytes)
+			add $s0, $s0, 40
+
+			# Clear $a3 if it was set
+			move $a3, $0
+
+			# Increment our counter and continue as long as our counter is less than the
+			# number of digits
+			addi $s3, $s3, 1
+			blt $s3, $s4 _drawLoop
+
+	# Restore the previous register values, including the return address
+	pop_word($s5)
+	pop_word($s4)
+	pop_word($s3)
+	pop_word($s2)
+	pop_word($s1)
+	pop_word($s0)
+	pop_word($ra)
+
+	# Finally, restore the return address and return to the caller
 	jr $ra
 
 # Draws a rectangle onto the bitmap display.
@@ -171,4 +537,113 @@ drawRectangle:
 		blt $t2, $t3, drawHeight
 
 	# Once we're all done, simply return to the caller
+	jr $ra
+
+# Draws the gameboard
+#
+# Parameters:
+# - $a0: The starting address of the in-memory gameboard data to read from
+drawGameboard:
+	# First, save the current return address onto the stack along with registers
+	# $s0-$s4.
+	push_word($ra)
+	push_word($s0)
+	push_word($s1)
+	push_word($s2)
+	push_word($s3)
+	push_word($s4)
+
+	move $s0, $a0	# Save the current gamedata pointer
+	move $s1, $0	# Setup our inner loop counter
+	move $s2, $0	# Setup our outer loop counter
+	create_coordinate(10, 10, $s3)	# The default starting coordinate (saved to $s3)
+	get_x_value($s3, $s4)		# Save the default X value to $s4
+
+	_drawRow:
+		_drawColumn:
+			# TODO: Select the tile background and text color based on its value
+
+			# Draw a rectangle
+			move $a0, $s3
+			li $a1, 108			# 108 px Width
+			li $a2, 108			# 108 px Height
+			li $a3, 0xFFFFFF		# TODO: Read gameboard data and decide color based on that data
+			jal drawRectangle
+
+			lw $a1, ($s0)
+			li $a2, 0xFF0000
+			jal drawNumber
+
+			# Get the current X value from $s3 and increment it by 128 px. Save that sum
+			# to $t0 and shift the value left 16 bits
+			get_x_value($s3, $t0)
+			addi $t0, $t0, 128
+			sll $t0, $t0, 16
+
+			# Clear the old X value in $s3
+			and $s3, 0x0000FFFF
+
+			# Pack the new X value
+			or $s3, $s3, $t0
+
+			# Increment the current gamedata pointer and inner loop counter and continue
+			# this loop until the counter is 4.
+			addi $s0, $s0, 4
+			addi $s1, $s1, 1
+			blt $s1, 4, _drawColumn
+
+		# Restore our original X value
+		sll $s4, $s4, 16	# Perform a bitshift on the original X value first
+		and $s3, 0x0000FFFF	# Clear the X value
+		or $s3, $s3, $s4	# Store the old X value in the coordinate point
+		srl $s4, $s4, 16	# Shift the X value back to its original value
+
+		# Increment our Y value by 128 px
+		get_y_value($s3, $t0)	# Store the current Y value into $t0
+		add $t0, $t0, 128	# Add 128 px
+		li $t1, 0xFFFF0000
+		and $s3, $s3, $t1	# Clear the old Y value from $s3
+		or $s3, $s3, $t0	# Pack the new Y value into $s3
+
+		# Reset the inner loop counter back to 0
+		move $s1, $0
+
+		# Increemnt our counter
+		# Note: no need to increment the current tile value pointer. The inner loop
+		# already takes care of that.
+		addi $s2, $s2, 1
+		blt $s2, 4, _drawRow
+
+	# Pop the saved registers and return address off the stack and return back to
+	# the caller.
+	pop_word($s4)
+	pop_word($s3)
+	pop_word($s2)
+	pop_word($s1)
+	pop_word($s0)
+	pop_word($ra)
+	jr $ra
+
+# Erases everything on the entire display
+#
+# Parameters: none
+clearDisplay:
+	# Find the total number of bytes to write to video memory
+	li $t1, MAX_DISPLAY_WIDTH
+	mul $t1, $t1, MAX_DISPLAY_HEIGHT
+
+	# Setup our loop counter
+	move $t0, $0
+
+	# Setup the display pointer in $t2
+	li $t2, DISPLAY_START
+
+	# For each part of the display, clear it.
+	_clrLoop:
+		sw $0, ($t2)
+		addi $t0, $t0, 1	# Increment the counter
+		addi $t2, $t2, 4	# Increment the display pointer
+		blt $t0, $t1, _clrLoop
+
+	# Finally, return to the caller
 	jr $ra

@@ -11,6 +11,13 @@
 	syscall
 .end_macro
 
+.macro printStrLit(%str)
+.data
+	_str: .asciiz %str
+.text
+	printStr(_str)
+.end_macro
+
 #macro to print integers
 .macro printInt(%int)
 	li $v0, 1	#print a integer
@@ -68,17 +75,26 @@
 	move %result, $v0
 .end_macro
 
-.macro fillEmptyBoard
-	    li $t7, 0                # loop counter = 0
+# multiplies arr value by 2
+.macro mulByTwo(%val)
+	mul %val, %val, 2
+.end_macro
 
-fillLoop:
-    sw $zero, (arrPtr)       # array[i] = 0
-
-    addi arrPtr, arrPtr, 4   # move pointer to next word
-    addi $t7, $t7, 1         # i++
-
-    blt $t7, 16, fillLoop    # while i < 16
+.macro printArr(%arr)	# prints array assuming array has 4 elements
+	li $v0, 1
+	la $a0, 0(%arr)
+	syscall
 	
-	exitLoop:
-
+	li $v0, 1
+	la $a0, 4(%arr)
+	syscall
+	
+	li $v0, 1
+	la $a0, 8(%arr)
+	syscall
+	
+	li $v0, 1
+	la $a0 12(%arr)
+	syscall
+	
 .end_macro
