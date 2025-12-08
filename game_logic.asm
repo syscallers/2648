@@ -48,7 +48,8 @@ shiftGameboardUp:
 				blt $t1, 3, __checkTilesUp
 
 		addi $t0, $t0, 1	# Increment the outer loop counter
-		subi $t2, $t2, 28
+		move $t1, $0		# Reset the inner loop counter
+		subi $t2, $t2, 44
 		blt $t0, 4, _combineTilesUp
 
 	# Reset some registers
@@ -161,7 +162,8 @@ shiftGameboardDown:
 				blt $t1, 3, __checkTilesDown
 
 		addi $t0, $t0, 1	# Increment the outer loop counter
-		subi $t2, $t2, 28
+		move $t1, $0		# Reset the inner loop counter
+		subi $t2, $t2, 44
 		blt $t0, 4, _combineTilesDown
 
 	# Reset some registers
