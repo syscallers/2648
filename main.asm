@@ -33,8 +33,8 @@ exitMessage: .asciiz "Exiting the game"
 .text
 main:
 	#formatting for game board (4x4)
-	li $t2, 0	#set $s0 as the horizontal loop counter
-	li $t3, 0	#set $s1 as the vertical loop counter
+	li $t2, 0	#set $t0 as the horizontal loop counter
+	li $t3, 0	#set $t1 as the vertical loop counter
 	
 	#save gameboard values array into $s0
 	la $s7, gameboardArr
@@ -100,10 +100,8 @@ printArrTiles:
 	
 
 swipe:	
-	li $s3, 0	# register for empty val s3
-	li $s4, 0	# resetting array pointer of surrrounding value to 0 s4
-	la $s5, ($s7)	# resetting array pointer to 0 s5
-	
+	li $t5, 0	# register for empty val
+	la $t5, ($s7)	# resetting array pointer to 0
 	#get the direction the user wants to swipe based on
 	#  given character
 	li $v0, 12	#read a character
@@ -117,15 +115,15 @@ swipe:
 	beq $a0, 'd', swipeRight	#if the user enters 'd', the board will swipe right
 	
 	multiplyTwo:	# multiplies arr value by 2 (might have to place this label somewhere else)
-		mulByTwo($s4)
+		mulByTwo($t4)
 	tileBelow:	# adds 16 to array pointer ( supposed lead array pointer to element below current element)
-		addi $s6, $s6, 16
+		addi $s7, $s7, 16
 	tileLeft:	# adds 4 to array pointer ( supposed to lead array pointer to element left of current element)
 		addi $s7, $s7, 4
 	swipeUp:
 		#check the tiles for potential combination
 		# if at end of 3rd row of array, go back to swipe
-		bge $s7, 48, swipe
+		bge $s7, 48, printArrTiles
 		#check the tiles for potential combination
 		# if $s0 is less than of equal to 16, add 16 to $s0 to get array pointer to next row
 		addi $t4, $s7, 16	# stores an arraypointer to the val below current val ($s7) in $t4 
@@ -138,13 +136,12 @@ swipe:
 	swipeDown:
 		#check the tiles for potential combination
 		# if at end of array, go back to swipe
-		beq $s7, 64, printArrTiles
-		lw $s6, ($s7)	# loading word located at current array pointer into s6
-		ble $s6, 12, tileBelow	# if arraypointer (element) is on the first row, add 16 to array to go to next row
-		subi $s4, $s6, -16	# array pointer for value above array pointer of current value is saved to $t4
-		beq $s6, $s4, multiplyTwo # if current value and the value right under it are the same, the value below it becomes 2*val
-		move $s6, $s4  # value of current val now 2*val
-		li $s4, 0
+		beq $s7, 64, swipe
+		ble $s7, 12, tileBelow	# if arraypointer (element) is on the first row, add 16 to array to go to next row
+		subi $t4, $s7, -16	# array pointer for value above array pointer of current value is saved to $t4
+		beq $s7, $t4, multiplyTwo # if current value and the value right under it are the same, the value below it becomes 2*val
+		sw $t4, ($s7) # value of current val now 2*val
+		sw $t5, ($t4)
 		
 		addi $s7, $s7, 4	# increment array pointer by 4
 		j swipeDown
@@ -161,8 +158,8 @@ swipe:
 		beq $s7, 48, tileLeft
 		subi $t4, $s7, 4	# stores arraypointer to right of current val ($s7) in $t4 
 		beq $s7, $t4, multiplyTwo	# if the current value and left of it are the same, multiply right tile by 2
-		move $s7, $t4	# save $t4 (multiplied value) to current array pointer value (* not sure if i should do move or sw)
-		move $t4, $t5	# arr val to right of current val now empty
+		move $t4, $s7	# save $t4 (multiplied value) to current array pointer value (* not sure if i should do move or sw)
+		sw $t5, ($t4)	# arr val to right of current val now empty
 		
 		addi $s7, $s7, 4	# incrementing array pointer by 4
 		j swipeLeft
