@@ -64,16 +64,14 @@ keyPress:
 	beq $t0, 's', moveDown
 	beq $t0, 'd', moveRight
 
-	# Update the gameboard
-	# Note: there's no need to erase the screen as the old tiles will
-	# automatically get erased when we redraw them.
-	jal drawGameboard
-
 	# Go back to main to keep the loop
 	j mainLoop
 
 moveUp:
 	jal shiftGameboardUp
+
+	# Update the gameboard ($a0 will remain unchanged)
+	jal drawGameboard
 	j mainLoop
 
 moveLeft:
