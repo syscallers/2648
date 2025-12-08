@@ -176,10 +176,12 @@ shiftGameboardDown:
 				# store element into current row pointer
 				sw $t5, ($t2)
 				
-				# increment stack pointer
+				# increment current value pointer
 				add $t2, $t2, 16
-				# increment current tile value pointer
-				add $t4, $t4, 4
+				# increment stack pointer
+				subi $t4, $t4, 4
+				# increment loop counter
+				addi $t1, $t1, 4
 				blt $t1, $t3, __popStack
 				
 		__ret:
